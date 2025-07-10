@@ -1,9 +1,11 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from groq import Groq
+from dotenv import load_dotenv
 import os
 import logging
 
+load_dotenv()
 # ---------------- LOGGING CONFIG ----------------
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +32,8 @@ def call_groq_llama(prompt: str) -> str:
     return resp.choices[0].message.content
 
 def groq_tts(text: str, model: str = "playai-tts", voice: str = "Fritz-PlayAI") -> bytes:
+    # Truncate text to avoid token limit errors (safe limit: 1000 chars)
+    text = text[:1000]
     resp = groq.audio.speech.create(
         model=model,
         voice=voice,
