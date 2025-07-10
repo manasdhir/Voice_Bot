@@ -40,6 +40,8 @@ const KnowledgeBase = () => {
   const [form, setForm] = useState({ title: "", summary: "" });
   const [mode, setMode] = useState("upload"); // 'upload' or 'type'
   const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
   const inputRef = useRef();
 
   const filteredArticles = articles.filter(
@@ -47,6 +49,28 @@ const KnowledgeBase = () => {
       a.title.toLowerCase().includes(search.toLowerCase()) ||
       a.summary.toLowerCase().includes(search.toLowerCase())
   );
+
+  const uploadFileToServer = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const response = await fetch('http://127.0.0.1:8000/upload_doc', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        return { success: true, data: result };
+      } else {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      return { success: false, error: error.message };
+    }
+  };
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -63,36 +87,97 @@ const KnowledgeBase = () => {
     setForm({ title: "", summary: "" });
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     setDragActive(false);
     const files = Array.from(e.dataTransfer.files);
-    files.forEach((file) => {
-      setArticles((prev) => [
-        ...prev,
-        {
-          id: Date.now() + Math.random(),
-          title: file.name,
-          summary: `${file.size} bytes`,
-          type: file.type || "file",
-        },
-      ]);
-    });
+    
+    setUploading(true);
+    setUploadStatus("Uploading files...");
+    
+    for (const file of files) {
+      try {
+        const result = await uploadFileToServer(file);
+        
+        if (result.success) {
+          setArticles((prev) => [
+            ...prev,
+            {
+              id: Date.now() + Math.random(),
+              title: file.name,
+              summary: `${file.size} bytes - Uploaded successfully`,
+              type: file.type || "file",
+              uploaded: true,
+            },
+          ]);
+          setUploadStatus(`${file.name} uploaded successfully!`);
+        } else {
+          setArticles((prev) => [
+            ...prev,
+            {
+              id: Date.now() + Math.random(),
+              title: file.name,
+              summary: `${file.size} bytes - Upload failed: ${result.error}`,
+              type: file.type || "file",
+              uploaded: false,
+            },
+          ]);
+          setUploadStatus(`Failed to upload ${file.name}: ${result.error}`);
+        }
+      } catch (error) {
+        setUploadStatus(`Error uploading ${file.name}: ${error.message}`);
+      }
+    }
+    
+    setUploading(false);
+    setTimeout(() => setUploadStatus(""), 3000);
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
-    files.forEach((file) => {
-      setArticles((prev) => [
-        ...prev,
-        {
-          id: Date.now() + Math.random(),
-          title: file.name,
-          summary: `${file.size} bytes`,
-          type: file.type || "file",
-        },
-      ]);
-    });
+    
+    setUploading(true);
+    setUploadStatus("Uploading files...");
+    
+    for (const file of files) {
+      try {
+        const result = await uploadFileToServer(file);
+        
+        if (result.success) {
+          setArticles((prev) => [
+            ...prev,
+            {
+              id: Date.now() + Math.random(),
+              title: file.name,
+              summary: `${file.size} bytes - Uploaded successfully`,
+              type: file.type || "file",
+              uploaded: true,
+            },
+          ]);
+          setUploadStatus(`${file.name} uploaded successfully!`);
+        } else {
+          setArticles((prev) => [
+            ...prev,
+            {
+              id: Date.now() + Math.random(),
+              title: file.name,
+              summary: `${file.size} bytes - Upload failed: ${result.error}`,
+              type: file.type || "file",
+              uploaded: false,
+            },
+          ]);
+          setUploadStatus(`Failed to upload ${file.name}: ${result.error}`);
+        }
+      } catch (error) {
+        setUploadStatus(`Error uploading ${file.name}: ${error.message}`);
+      }
+    }
+    
+    setUploading(false);
+    setTimeout(() => setUploadStatus(""), 3000);
+    
+    // Reset the input
+    e.target.value = '';
   };
 
   return (
@@ -124,35 +209,54 @@ const KnowledgeBase = () => {
           </button>
         </div>
         {mode === "upload" ? (
-          <div
-            className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-10 transition-all duration-200 cursor-pointer shadow-xl backdrop-blur-lg bg-white/10 border-white/20 w-full ${
-              dragActive ? "border-orange-500 bg-orange-900/30" : ""
-            }`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragActive(true);
-            }}
-            onDragLeave={(e) => {
-              e.preventDefault();
-              setDragActive(false);
-            }}
-            onDrop={handleDrop}
-            onClick={() => inputRef.current.click()}
-          >
-            <input
-              type="file"
-              multiple
-              ref={inputRef}
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <span className="text-5xl mb-2">⬆️</span>
-            <span className="font-semibold text-lg">
-              Drag & Drop files here or click to upload
-            </span>
-            <span className="text-xs text-neutral-300 mt-1">
-              Supported: PDF, DOCX, Images, Text, etc.
-            </span>
+          <div className="w-full">
+            <div
+              className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-10 transition-all duration-200 cursor-pointer shadow-xl backdrop-blur-lg bg-white/10 border-white/20 w-full ${
+                dragActive ? "border-orange-500 bg-orange-900/30" : ""
+              } ${uploading ? "pointer-events-none opacity-50" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragActive(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setDragActive(false);
+              }}
+              onDrop={handleDrop}
+              onClick={() => !uploading && inputRef.current.click()}
+            >
+              <input
+                type="file"
+                multiple
+                ref={inputRef}
+                className="hidden"
+                onChange={handleFileChange}
+                disabled={uploading}
+              />
+              <span className="text-5xl mb-2">
+                {uploading ? "⏳" : "⬆️"}
+              </span>
+              <span className="font-semibold text-lg">
+                {uploading 
+                  ? "Uploading files..." 
+                  : "Drag & Drop files here or click to upload"
+                }
+              </span>
+              <span className="text-xs text-neutral-300 mt-1">
+                Supported: PDF, DOCX, Images, Text, etc.
+              </span>
+            </div>
+            {uploadStatus && (
+              <div className={`mt-4 p-3 rounded-lg text-center ${
+                uploadStatus.includes("successfully") 
+                  ? "bg-green-500/20 text-green-300 border border-green-500/30" 
+                  : uploadStatus.includes("failed") || uploadStatus.includes("Error")
+                  ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                  : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+              }`}>
+                {uploadStatus}
+              </div>
+            )}
           </div>
         ) : (
           <form
@@ -208,8 +312,14 @@ const KnowledgeBase = () => {
                 {article.type === "manual" ? "📝" : fileTypeIcon(article.type)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="truncate font-semibold text-base">
+                <div className="truncate font-semibold text-base flex items-center gap-2">
                   {article.title}
+                  {article.uploaded === true && (
+                    <span className="text-green-400 text-xs">✓</span>
+                  )}
+                  {article.uploaded === false && (
+                    <span className="text-red-400 text-xs">✗</span>
+                  )}
                 </div>
                 <div className="truncate text-neutral-300 text-xs">
                   {article.summary}

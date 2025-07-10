@@ -219,7 +219,7 @@ export default function VoiceBot() {
   }, [micOn]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-60 w-full bg-black gap-6">
+    <div className="flex flex-col items-center justify-center h-60 w-full gap-6">
       <div className="relative h-[120px] w-full flex items-center justify-center">
         {/* Bot speaking animation */}
         <AnimatePresence mode="wait">
