@@ -3,9 +3,9 @@ import React from "react";
 const Profile = () => {
   // Dummy user data (replace with real user data as needed)
   const user = {
-    name: "Manu Arora",
-    email: "manu@example.com",
-    avatar: "https://assets.aceternity.com/manu.png",
+    name: "Manas Dhir",
+    email: "dhir.manas@gmail.com",
+    avatar: "./manas.png",
     role: "User",
   };
 

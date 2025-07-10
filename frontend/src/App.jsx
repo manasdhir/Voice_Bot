@@ -109,11 +109,11 @@ const App = () => {
           <div>
             <SidebarLink
               link={{
-                label: "Manu Arora",
+                label: "Manas Dhir",
                 page: "profile",
                 icon: (
                   <img
-                    src="https://assets.aceternity.com/manu.png"
+                    src="./manas.png"
                     className="h-7 w-7 shrink-0 rounded-full"
                     width={50}
                     height={50}
