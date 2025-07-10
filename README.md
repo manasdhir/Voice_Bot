@@ -15,7 +15,7 @@ A full-stack conversational voice chatbot using FastAPI (Python) for the backend
 
 ## Architecture
 
-![Architecture Diagram](https://github.com/manasdhir/Voice_Bot/blob/main/frontend/public/arch.png)
+<img src="https://github.com/manasdhir/Voice_Bot/blob/main/frontend/public/arch.png" alt="Architecture Diagram" width="500"/>
 
 ```
 Flow:
