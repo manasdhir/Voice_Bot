@@ -27,6 +27,7 @@ export default function VoiceBot() {
   const [volumeScale, setVolumeScale] = useState(1);
   const [userSpeaking, setUserSpeaking] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
@@ -41,12 +42,17 @@ export default function VoiceBot() {
   const botAudioRef = useRef(null);
 
   const connectWebSocket = () => {
+    setConnecting(true);
     const ws = new WebSocket("ws://localhost:8000/ws/stream");
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
       console.log("🔌 WebSocket connected.");
       setConnected(true);
+      setConnecting(false);
+
+      // Only start mic after successful WebSocket connection
+      setMicOn(true);
 
       // Send user ID only if user is logged in
       if (isSignedIn && user?.id) {
@@ -114,11 +120,15 @@ export default function VoiceBot() {
     ws.onclose = () => {
       console.log("❌ WebSocket disconnected.");
       setConnected(false);
+      setConnecting(false);
+      setMicOn(false); // Stop mic when WebSocket closes
     };
 
     ws.onerror = (err) => {
       console.error("⚠️ WebSocket error:", err);
       setConnected(false);
+      setConnecting(false);
+      setMicOn(false); // Stop mic on WebSocket error
     };
 
     wsRef.current = ws;
@@ -247,14 +257,15 @@ export default function VoiceBot() {
   };
 
   const handleStart = () => {
-    if (!connected) {
+    if (!connected && !connecting) {
       connectWebSocket();
-      setMicOn(true);
+      // Note: setMicOn(true) is now called in ws.onopen
     }
   };
 
   const handleDisconnect = () => {
     setConnected(false);
+    setConnecting(false);
     setMicOn(false);
     setIsSpeaking(false);
     setUserSpeaking(false);
@@ -348,8 +359,31 @@ export default function VoiceBot() {
         </AnimatePresence>
       </div>
 
+      {/* Connection Status Message */}
+      <AnimatePresence mode="wait">
+        {connecting && (
+          <motion.div
+            key="connecting"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex flex-col items-center gap-3 text-center"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-orange-400 font-medium">
+                Trying to connect to the backend...
+              </span>
+            </div>
+            <div className="text-xs text-neutral-500 dark:text-neutral-400">
+              Please wait while we establish the connection
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Conditional Sign-in Message */}
-      {!isSignedIn && (
+      {!isSignedIn && !connecting && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -367,25 +401,31 @@ export default function VoiceBot() {
         <div className="flex gap-4">
           <button
             onClick={handleStart}
-            disabled={connected}
+            disabled={connected || connecting}
             className={`min-w-[120px] text-white px-8 py-4 rounded-2xl font-semibold shadow-lg transition-all duration-200 ${
               connected
                 ? "bg-green-600 cursor-not-allowed opacity-75"
+                : connecting
+                ? "bg-yellow-600 cursor-not-allowed opacity-75"
                 : "bg-orange-500 hover:bg-orange-600 hover:shadow-xl transform hover:scale-105"
             }`}
           >
-            {connected ? "🔗 Connected" : "🎤 Start"}
+            {connected
+              ? "🔗 Connected"
+              : connecting
+              ? "🔄 Connecting..."
+              : "🎤 Start"}
           </button>
           <button
             onClick={handleDisconnect}
-            disabled={!connected}
+            disabled={!connected && !connecting}
             className={`min-w-[120px] text-white px-8 py-4 rounded-2xl font-semibold shadow-lg transition-all duration-200 ${
-              !connected
+              !connected && !connecting
                 ? "bg-neutral-400 dark:bg-neutral-600 cursor-not-allowed opacity-75"
                 : "bg-red-500 hover:bg-red-600 hover:shadow-xl transform hover:scale-105"
             }`}
           >
-            {!connected ? "⏹️ Disconnect" : "🔌 Disconnect"}
+            {connecting ? "🔌 Cancel" : "🔌 Disconnect"}
           </button>
         </div>
 
@@ -393,11 +433,19 @@ export default function VoiceBot() {
         <div className="flex items-center gap-2 text-sm">
           <div
             className={`w-2 h-2 rounded-full ${
-              connected ? "bg-green-400" : "bg-neutral-400"
+              connected
+                ? "bg-green-400"
+                : connecting
+                ? "bg-yellow-400 animate-pulse"
+                : "bg-neutral-400"
             }`}
           ></div>
           <span className="text-neutral-600 dark:text-neutral-400">
-            {connected ? "Ready to listen" : "Disconnected"}
+            {connected
+              ? "Ready to listen"
+              : connecting
+              ? "Connecting..."
+              : "Disconnected"}
           </span>
         </div>
       </div>
