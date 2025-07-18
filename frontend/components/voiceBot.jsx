@@ -24,6 +24,7 @@ export default function VoiceBot() {
   const [micOn, setMicOn] = useState(false);
   const [volumeScale, setVolumeScale] = useState(1);
   const [userSpeaking, setUserSpeaking] = useState(false);
+  const [connected, setConnected] = useState(false);
 
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
@@ -41,7 +42,10 @@ export default function VoiceBot() {
     const ws = new WebSocket("ws://localhost:8000/ws/stream");
     ws.binaryType = "arraybuffer";
 
-    ws.onopen = () => console.log("🔌 WebSocket connected.");
+    ws.onopen = () => {
+      console.log("🔌 WebSocket connected.");
+      setConnected(true);
+    };
 
     ws.onmessage = async (event) => {
       if (typeof event.data === "string") {
@@ -86,8 +90,15 @@ export default function VoiceBot() {
       }
     };
 
-    ws.onclose = () => console.log("❌ WebSocket disconnected.");
-    ws.onerror = (err) => console.error("⚠️ WebSocket error:", err);
+    ws.onclose = () => {
+      console.log("❌ WebSocket disconnected.");
+      setConnected(false);
+    };
+
+    ws.onerror = (err) => {
+      console.error("⚠️ WebSocket error:", err);
+      setConnected(false);
+    };
 
     wsRef.current = ws;
   };
@@ -205,18 +216,56 @@ export default function VoiceBot() {
 
     analyserRef.current = null;
     dataArrayRef.current = null;
+    setVolumeScale(1);
+    setUserSpeaking(false);
   };
 
-  useEffect(() => {
-    connectWebSocket();
-    return () => wsRef.current?.close();
-  }, []);
+  const handleStart = () => {
+    if (!connected) {
+      connectWebSocket();
+      setMicOn(true);
+    }
+  };
 
+  const handleDisconnect = () => {
+    setConnected(false);
+    setMicOn(false);
+    setIsSpeaking(false);
+    setUserSpeaking(false);
+
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    if (botAudioRef.current) {
+      botAudioRef.current.pause();
+      botAudioRef.current = null;
+    }
+  };
+
+  // Only handle mic state changes, no automatic WebSocket connection
   useEffect(() => {
-    if (micOn) startMic();
-    else stopMic();
+    if (micOn) {
+      startMic();
+    } else {
+      stopMic();
+    }
     return () => stopMic();
   }, [micOn]);
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (botAudioRef.current) {
+        botAudioRef.current.pause();
+      }
+      stopMic();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center h-60 w-full gap-6">
@@ -235,7 +284,7 @@ export default function VoiceBot() {
               {blobs.map((b, i) => (
                 <motion.div
                   key={b}
-                  className="bg-white rounded-full w-[60px] h-[60px]"
+                  className="bg-orange-500 rounded-full w-[60px] h-[60px] shadow-lg"
                   custom={i}
                   variants={blobVariants}
                   animate="animate"
@@ -253,7 +302,7 @@ export default function VoiceBot() {
               initial={{ opacity: 0, scale: 0 }}
               animate={{ scale: volumeScale, opacity: 1 }}
               exit={{ opacity: 0, scale: 0 }}
-              className="absolute bg-white rounded-full h-[100px] w-[100px]"
+              className="absolute bg-black dark:bg-white rounded-full h-[100px] w-[100px] shadow-lg"
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
             />
           )}
@@ -267,20 +316,36 @@ export default function VoiceBot() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.3, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute bg-white rounded-full h-[50px] w-[50px]"
+              className="absolute bg-neutral-400 dark:bg-neutral-600 rounded-full h-[50px] w-[50px] shadow-md"
             />
           )}
         </AnimatePresence>
       </div>
 
-      <button
-        onClick={() => setMicOn((prev) => !prev)}
-        className={`text-white px-4 py-2 rounded ${
-          micOn ? "bg-red-600" : "bg-green-600"
-        }`}
-      >
-        {micOn ? "Stop Mic" : "Start Mic"}
-      </button>
+      <div className="flex gap-4">
+        <button
+          onClick={handleStart}
+          disabled={connected}
+          className={`text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition-all duration-200 ${
+            connected
+              ? "bg-green-600 cursor-not-allowed opacity-75"
+              : "bg-orange-500 hover:bg-orange-600 hover:shadow-xl transform hover:scale-105"
+          }`}
+        >
+          {connected ? "Connected" : "Start"}
+        </button>
+        <button
+          onClick={handleDisconnect}
+          disabled={!connected}
+          className={`text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition-all duration-200 ${
+            !connected
+              ? "bg-neutral-400 dark:bg-neutral-600 cursor-not-allowed opacity-75"
+              : "bg-red-500 hover:bg-red-600 hover:shadow-xl transform hover:scale-105"
+          }`}
+        >
+          Disconnect
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import React from "react";
 
-const Dashboard = () => {
+const Tools = () => {
   return (
     <div className="bg-black w-full h-full rounded-l-2xl justify-center items-center flex flex-col text-white">
-      Dashboard
+      Tools
     </div>
   );
 };
 
-export default Dashboard;
+export default Tools;

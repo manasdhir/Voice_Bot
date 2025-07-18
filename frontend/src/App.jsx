@@ -6,13 +6,15 @@ import {
   IconBrandTabler,
   IconRobotFace,
   IconSettings,
+  IconUser,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils";
-import Dashboard from "./pages/dashboard";
+import Tools from "./pages/tools";
 import ChatBot from "./pages/chatbot";
 import KnowledgeBase from "./pages/knowledgebase";
 import Profile from "./pages/profile";
+import { useAuth } from "../context/authContext";
 
 const links = [
   {
@@ -23,8 +25,8 @@ const links = [
     ),
   },
   {
-    label: "Dashboard",
-    page: "dashboard",
+    label: "Tools",
+    page: "Tools",
     icon: (
       <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
     ),
@@ -34,13 +36,6 @@ const links = [
     page: "knowledgebase",
     icon: (
       <IconBook className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-    ),
-  },
-  {
-    label: "Logout",
-    page: "logout",
-    icon: (
-      <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
     ),
   },
 ];
@@ -62,6 +57,7 @@ const Logo = () => {
     </a>
   );
 };
+
 const LogoIcon = () => {
   return (
     <a
@@ -73,12 +69,89 @@ const LogoIcon = () => {
   );
 };
 
+// Function to get user's initials
+const getUserInitials = (user) => {
+  if (!user) return "?";
+
+  if (user.name) {
+    // Get first letter of first name and last name
+    const nameParts = user.name.trim().split(" ");
+    if (nameParts.length >= 2) {
+      return (
+        nameParts[0][0] + nameParts[nameParts.length - 1][0]
+      ).toUpperCase();
+    }
+    return nameParts[0][0].toUpperCase();
+  }
+
+  // Fall back to first letter of email
+  if (user.email) {
+    return user.email[0].toUpperCase();
+  }
+
+  return "?";
+};
+
+const UserAvatar = ({ user, size = "h-7 w-7" }) => {
+  const initials = getUserInitials(user);
+
+  return (
+    <div
+      className={`${size} shrink-0 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold text-sm border-2 border-transparent hover:border-orange-400 transition-colors shadow-sm`}
+    >
+      {initials}
+    </div>
+  );
+};
+
+const UserProfile = ({ user, isSignedIn, loading, open, onClick }) => {
+  if (loading) {
+    return (
+      <div className="flex items-center space-x-2 py-2 px-2 rounded-md">
+        <div className="h-7 w-7 rounded-full bg-neutral-300 dark:bg-neutral-600 animate-pulse"></div>
+        {open && (
+          <div className="h-4 w-20 bg-neutral-300 dark:bg-neutral-600 rounded animate-pulse"></div>
+        )}
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <SidebarLink
+        link={{
+          label: "Sign In",
+          page: "profile",
+          icon: (
+            <div className="h-7 w-7 shrink-0 rounded-full bg-neutral-300 dark:bg-neutral-600 flex items-center justify-center">
+              <IconUser className="h-4 w-4 text-neutral-600 dark:text-neutral-300" />
+            </div>
+          ),
+        }}
+        onClick={onClick}
+      />
+    );
+  }
+
+  return (
+    <SidebarLink
+      link={{
+        label: user?.name || "Profile",
+        page: "profile",
+        icon: <UserAvatar user={user} />,
+      }}
+      onClick={onClick}
+    />
+  );
+};
+
 const App = () => {
   const [open, setOpen] = useState(false);
   const [selectedPage, setSelectedPage] = useState("chatbot");
+  const { user, isSignedIn, loading } = useAuth();
 
   let PageComponent = null;
-  if (selectedPage === "dashboard") PageComponent = Dashboard;
+  if (selectedPage === "Tools") PageComponent = Tools;
   else if (selectedPage === "chatbot") PageComponent = ChatBot;
   else if (selectedPage === "knowledgebase") PageComponent = KnowledgeBase;
   else if (selectedPage === "profile") PageComponent = Profile;
@@ -106,21 +179,24 @@ const App = () => {
               ))}
             </div>
           </div>
-          <div>
-            <SidebarLink
-              link={{
-                label: "Manas Dhir",
-                page: "profile",
-                icon: (
-                  <img
-                    src="./manas.png"
-                    className="h-7 w-7 shrink-0 rounded-full"
-                    width={50}
-                    height={50}
-                    alt="Avatar"
-                  />
-                ),
-              }}
+
+          {/* User Profile Section */}
+          <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4">
+            {isSignedIn && user && open && (
+              <div className="px-2 py-2 mb-2">
+                <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">
+                  Signed in as
+                </div>
+                <div className="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">
+                  {user.email}
+                </div>
+              </div>
+            )}
+            <UserProfile
+              user={user}
+              isSignedIn={isSignedIn}
+              loading={loading}
+              open={open}
               onClick={() => setSelectedPage("profile")}
             />
           </div>
