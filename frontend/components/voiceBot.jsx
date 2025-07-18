@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MicVAD } from "@ricky0123/vad-web";
+import { useAuth } from "../context/authContext";
 
 const blobs = [0, 1, 2, 3];
 
@@ -20,6 +21,7 @@ const blobVariants = {
 };
 
 export default function VoiceBot() {
+  const { user, isSignedIn } = useAuth();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [micOn, setMicOn] = useState(false);
   const [volumeScale, setVolumeScale] = useState(1);
@@ -45,6 +47,21 @@ export default function VoiceBot() {
     ws.onopen = () => {
       console.log("🔌 WebSocket connected.");
       setConnected(true);
+
+      // Send user ID only if user is logged in
+      if (isSignedIn && user?.id) {
+        const userInfo = {
+          type: "user_info",
+          user_id: user.id,
+          user_name: user.name,
+          user_email: user.email,
+          timestamp: new Date().toISOString(),
+        };
+        ws.send(JSON.stringify(userInfo));
+        console.log("👤 User info sent:", userInfo);
+      } else {
+        console.log("👤 Anonymous user connected");
+      }
     };
 
     ws.onmessage = async (event) => {
@@ -58,6 +75,10 @@ export default function VoiceBot() {
           setIsSpeaking(true);
         } else if (msg.type === "tts_end") {
           setIsSpeaking(false);
+        } else if (msg.type === "user_registered") {
+          console.log("✅ User registered on server:", msg.message);
+        } else if (msg.type === "error") {
+          console.error("❌ Server error:", msg.message);
         }
       } else {
         if (botAudioRef.current) {
@@ -160,7 +181,12 @@ export default function VoiceBot() {
         reader.onloadend = () => {
           const buffer = reader.result;
           if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ lang: "english" }));
+            // Send language info (include user_id only if logged in)
+            const audioInfo = {
+              lang: "english",
+              ...(isSignedIn && user?.id && { user_id: user.id }),
+            };
+            wsRef.current.send(JSON.stringify(audioInfo));
             wsRef.current.send(buffer);
           }
         };
@@ -268,7 +294,7 @@ export default function VoiceBot() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center h-60 w-full gap-6">
+    <div className="flex flex-col items-center justify-center min-h-[400px] w-full gap-8 p-8">
       <div className="relative h-[120px] w-full flex items-center justify-center">
         {/* Bot speaking animation */}
         <AnimatePresence mode="wait">
@@ -322,29 +348,58 @@ export default function VoiceBot() {
         </AnimatePresence>
       </div>
 
-      <div className="flex gap-4">
-        <button
-          onClick={handleStart}
-          disabled={connected}
-          className={`text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition-all duration-200 ${
-            connected
-              ? "bg-green-600 cursor-not-allowed opacity-75"
-              : "bg-orange-500 hover:bg-orange-600 hover:shadow-xl transform hover:scale-105"
-          }`}
+      {/* Conditional Sign-in Message */}
+      {!isSignedIn && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center gap-2 text-center"
         >
-          {connected ? "Connected" : "Start"}
-        </button>
-        <button
-          onClick={handleDisconnect}
-          disabled={!connected}
-          className={`text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition-all duration-200 ${
-            !connected
-              ? "bg-neutral-400 dark:bg-neutral-600 cursor-not-allowed opacity-75"
-              : "bg-red-500 hover:bg-red-600 hover:shadow-xl transform hover:scale-105"
-          }`}
-        >
-          Disconnect
-        </button>
+          <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+            <span className="text-orange-400">🔒</span>
+            <span>Sign in to unlock tools and knowledge base</span>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Control Buttons */}
+      <div className="flex flex-col items-center gap-6">
+        <div className="flex gap-4">
+          <button
+            onClick={handleStart}
+            disabled={connected}
+            className={`min-w-[120px] text-white px-8 py-4 rounded-2xl font-semibold shadow-lg transition-all duration-200 ${
+              connected
+                ? "bg-green-600 cursor-not-allowed opacity-75"
+                : "bg-orange-500 hover:bg-orange-600 hover:shadow-xl transform hover:scale-105"
+            }`}
+          >
+            {connected ? "🔗 Connected" : "🎤 Start"}
+          </button>
+          <button
+            onClick={handleDisconnect}
+            disabled={!connected}
+            className={`min-w-[120px] text-white px-8 py-4 rounded-2xl font-semibold shadow-lg transition-all duration-200 ${
+              !connected
+                ? "bg-neutral-400 dark:bg-neutral-600 cursor-not-allowed opacity-75"
+                : "bg-red-500 hover:bg-red-600 hover:shadow-xl transform hover:scale-105"
+            }`}
+          >
+            {!connected ? "⏹️ Disconnect" : "🔌 Disconnect"}
+          </button>
+        </div>
+
+        {/* Status Indicator */}
+        <div className="flex items-center gap-2 text-sm">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              connected ? "bg-green-400" : "bg-neutral-400"
+            }`}
+          ></div>
+          <span className="text-neutral-600 dark:text-neutral-400">
+            {connected ? "Ready to listen" : "Disconnected"}
+          </span>
+        </div>
       </div>
     </div>
   );
