@@ -1,27 +1,51 @@
+
 import React, { useState, useRef } from "react";
 import { useAuth } from "../../context/authContext";
 
-// ...existing code...
-const dummyArticles = [
+const dummyKnowledgeBases = [
   {
-    id: 1,
-    title: "How to use the Voice Bot?",
-    summary: "A quick start guide to using the Voice Bot for your daily tasks.",
+    id: "general",
+    name: "General Knowledge",
+    description: "General purpose knowledge base",
+    docCount: 15,
+    created: "2024-01-15",
+    articles: [
+      {
+        id: 1,
+        title: "How to use the Voice Bot?",
+        summary: "A quick start guide to using the Voice Bot for your daily tasks.",
+        type: "manual",
+      },
+      {
+        id: 2,
+        title: "Troubleshooting common issues",
+        summary: "Solutions to the most common problems users face.",
+        type: "manual",
+      },
+    ],
   },
   {
-    id: 2,
-    title: "Troubleshooting common issues",
-    summary: "Solutions to the most common problems users face.",
+    id: "technical",
+    name: "Technical Documentation",
+    description: "Technical guides and documentation",
+    docCount: 8,
+    created: "2024-01-20",
+    articles: [
+      {
+        id: 3,
+        title: "API Documentation",
+        summary: "Complete API reference guide",
+        type: "manual",
+      },
+    ],
   },
   {
-    id: 3,
-    title: "Integrating with other tools",
-    summary: "Learn how to connect the Voice Bot with your favorite apps.",
-  },
-  {
-    id: 4,
-    title: "Privacy and Security",
-    summary: "Understand how your data is protected and managed.",
+    id: "personal",
+    name: "Personal Notes",
+    description: "Personal documents and notes",
+    docCount: 23,
+    created: "2024-02-01",
+    articles: [],
   },
 ];
 
@@ -41,8 +65,7 @@ const SignInPrompt = () => {
         <div className="text-6xl">🔒</div>
         <h2 className="text-2xl font-bold text-orange-400">Knowledge Base</h2>
         <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed">
-          You need to sign in to access the Knowledge Base. Upload documents,
-          create notes, and search through your knowledge collection.
+          You need to sign in to access the Knowledge Base. Create knowledge bases, upload documents, and organize your information.
         </p>
         <p className="text-neutral-500 dark:text-neutral-400 text-sm">
           Please go to the Profile section to sign in or create an account.
@@ -56,39 +79,169 @@ const SignInPrompt = () => {
   );
 };
 
-const KnowledgeBase = () => {
-  const { user, isSignedIn, loading, session } = useAuth();
-  const token = session?.access_token;
-  //console.log(session)
-  const [search, setSearch] = useState("");
-  const [articles, setArticles] = useState(
-    dummyArticles.map((a) => ({ ...a, type: "manual" }))
+const CreateKnowledgeBaseModal = ({ isOpen, onClose, onCreate }) => {
+  const [form, setForm] = useState({ name: "", description: "" });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    
+    onCreate({
+      id: Date.now().toString(),
+      name: form.name,
+      description: form.description,
+      docCount: 0,
+      created: new Date().toISOString().split('T')[0],
+      articles: [],
+    });
+    
+    setForm({ name: "", description: "" });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-neutral-200 dark:border-white/20 max-w-md w-full">
+        <h3 className="text-2xl font-bold text-black dark:text-white mb-6">Create Knowledge Base</h3>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-300 mb-2">
+              Name *
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg bg-white/20 dark:bg-white/20 text-black dark:text-white border border-neutral-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-neutral-500 dark:placeholder:text-neutral-300"
+              placeholder="Enter knowledge base name"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-300 mb-2">
+              Description
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg bg-white/20 dark:bg-white/20 text-black dark:text-white border border-neutral-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-neutral-500 dark:placeholder:text-neutral-300"
+              placeholder="Enter description (optional)"
+              rows={3}
+            />
+          </div>
+          
+          <div className="flex gap-3 mt-6">
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors font-medium"
+            >
+              Create
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 rounded-lg bg-neutral-500 text-white hover:bg-neutral-600 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
+};
+
+const KnowledgeBaseList = ({ knowledgeBases, onSelect, onCreateNew }) => {
+  return (
+    <div className="w-full">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-black dark:text-white">Your Knowledge Bases</h2>
+          <p className="text-neutral-600 dark:text-neutral-300 text-sm mt-1">
+            Create and manage your knowledge collections
+          </p>
+        </div>
+        <button
+          onClick={onCreateNew}
+          className="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors font-medium flex items-center gap-2"
+        >
+          <span>➕</span>
+          Create New
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {knowledgeBases.map((kb) => (
+          <div
+            key={kb.id}
+            onClick={() => onSelect(kb)}
+            className="bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-xl p-6 shadow-lg border border-neutral-200 dark:border-white/20 cursor-pointer hover:shadow-xl hover:border-orange-400 transition-all duration-200 group"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="text-3xl">📚</div>
+              <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                {kb.created}
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-semibold text-black dark:text-white mb-2 group-hover:text-orange-400 transition-colors">
+              {kb.name}
+            </h3>
+            
+            <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4 line-clamp-2">
+              {kb.description || "No description"}
+            </p>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+                <span>📄</span>
+                <span>{kb.docCount} documents</span>
+              </div>
+              <div className="text-orange-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                Enter →
+              </div>
+            </div>
+          </div>
+        ))}
+        
+        {knowledgeBases.length === 0 && (
+          <div className="col-span-full text-center py-12">
+            <div className="text-6xl mb-4">📚</div>
+            <h3 className="text-xl font-semibold text-neutral-600 dark:text-neutral-300 mb-2">
+              No Knowledge Bases
+            </h3>
+            <p className="text-neutral-500 dark:text-neutral-400 mb-4">
+              Create your first knowledge base to get started
+            </p>
+            <button
+              onClick={onCreateNew}
+              className="px-6 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors font-medium"
+            >
+              Create Knowledge Base
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  
+  const [search, setSearch] = useState("");
+  const [articles, setArticles] = useState(knowledgeBase.articles || []);
   const [form, setForm] = useState({ title: "", summary: "" });
-  const [mode, setMode] = useState("upload"); // 'upload' or 'type'
+  const [mode, setMode] = useState("upload");
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const inputRef = useRef();
-
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="bg-gray-100 dark:bg-black w-full h-full rounded-l-2xl flex flex-col items-center justify-center text-neutral-700 dark:text-white p-8">
-        <div className="flex flex-col items-center gap-4">
-          <div className="text-4xl">⏳</div>
-          <div className="text-xl text-neutral-600 dark:text-neutral-300">
-            Loading...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show sign-in prompt if user is not signed in
-  if (!isSignedIn) {
-    return <SignInPrompt />;
-  }
 
   const filteredArticles = articles.filter(
     (a) =>
@@ -124,15 +277,23 @@ const KnowledgeBase = () => {
   const handleAdd = (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.summary.trim()) return;
-    setArticles([
-      ...articles,
-      {
-        id: Date.now(),
-        title: form.title,
-        summary: form.summary,
-        type: "manual",
-      },
-    ]);
+    
+    const newArticle = {
+      id: Date.now(),
+      title: form.title,
+      summary: form.summary,
+      type: "manual",
+    };
+    
+    setArticles([...articles, newArticle]);
+    
+    // Update the knowledge base
+    onUpdateKB({
+      ...knowledgeBase,
+      articles: [...articles, newArticle],
+      docCount: articles.length + 1,
+    });
+    
     setForm({ title: "", summary: "" });
   };
 
@@ -147,30 +308,20 @@ const KnowledgeBase = () => {
     for (const file of files) {
       try {
         const result = await uploadFileToServer(file);
+        
+        const newArticle = {
+          id: Date.now() + Math.random(),
+          title: file.name,
+          summary: `${file.size} bytes - ${result.success ? 'Uploaded successfully' : `Upload failed: ${result.error}`}`,
+          type: file.type || "file",
+          uploaded: result.success,
+        };
 
+        setArticles(prev => [...prev, newArticle]);
+        
         if (result.success) {
-          setArticles((prev) => [
-            ...prev,
-            {
-              id: Date.now() + Math.random(),
-              title: file.name,
-              summary: `${file.size} bytes - Uploaded successfully`,
-              type: file.type || "file",
-              uploaded: true,
-            },
-          ]);
           setUploadStatus(`${file.name} uploaded successfully!`);
         } else {
-          setArticles((prev) => [
-            ...prev,
-            {
-              id: Date.now() + Math.random(),
-              title: file.name,
-              summary: `${file.size} bytes - Upload failed: ${result.error}`,
-              type: file.type || "file",
-              uploaded: false,
-            },
-          ]);
           setUploadStatus(`Failed to upload ${file.name}: ${result.error}`);
         }
       } catch (error) {
@@ -191,30 +342,20 @@ const KnowledgeBase = () => {
     for (const file of files) {
       try {
         const result = await uploadFileToServer(file);
+        
+        const newArticle = {
+          id: Date.now() + Math.random(),
+          title: file.name,
+          summary: `${file.size} bytes - ${result.success ? 'Uploaded successfully' : `Upload failed: ${result.error}`}`,
+          type: file.type || "file",
+          uploaded: result.success,
+        };
 
+        setArticles(prev => [...prev, newArticle]);
+        
         if (result.success) {
-          setArticles((prev) => [
-            ...prev,
-            {
-              id: Date.now() + Math.random(),
-              title: file.name,
-              summary: `${file.size} bytes - Uploaded successfully`,
-              type: file.type || "file",
-              uploaded: true,
-            },
-          ]);
           setUploadStatus(`${file.name} uploaded successfully!`);
         } else {
-          setArticles((prev) => [
-            ...prev,
-            {
-              id: Date.now() + Math.random(),
-              title: file.name,
-              summary: `${file.size} bytes - Upload failed: ${result.error}`,
-              type: file.type || "file",
-              uploaded: false,
-            },
-          ]);
           setUploadStatus(`Failed to upload ${file.name}: ${result.error}`);
         }
       } catch (error) {
@@ -230,40 +371,49 @@ const KnowledgeBase = () => {
   };
 
   return (
-    <div className="bg-gray-100 dark:bg-black w-full h-full rounded-l-2xl flex flex-col items-center text-neutral-700 dark:text-white p-8 overflow-auto">
-      <div className="w-full flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-black dark:text-white">
-          Knowledge Base
-        </h1>
-        <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
-          <span>👋</span>
-          <span>Welcome, {user.name}!</span>
+    <div className="w-full">
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-6">
+        <button
+          onClick={onBack}
+          className="p-2 rounded-lg bg-white/10 dark:bg-white/10 hover:bg-white/20 dark:hover:bg-white/20 transition-colors"
+        >
+          ←
+        </button>
+        <div>
+          <h2 className="text-2xl font-semibold text-black dark:text-white">{knowledgeBase.name}</h2>
+          <p className="text-neutral-600 dark:text-neutral-300 text-sm">
+            {knowledgeBase.description || "No description"}
+          </p>
         </div>
       </div>
 
-      <div className="w-full flex flex-col gap-4 mb-8">
-        <div className="flex justify-center gap-2 mb-4 w-full">
-          <button
-            onClick={() => setMode("upload")}
-            className={`px-6 py-2 rounded-xl font-semibold backdrop-blur-md bg-white/10 dark:bg-white/10 border border-neutral-200 dark:border-white/20 transition-all duration-150 ${
-              mode === "upload"
-                ? "bg-white/30 dark:bg-white/30 text-orange-500 border-orange-400 shadow-lg"
-                : "hover:bg-white/20 dark:hover:bg-white/20 text-neutral-600 dark:text-neutral-200"
-            }`}
-          >
-            Upload
-          </button>
-          <button
-            onClick={() => setMode("type")}
-            className={`px-6 py-2 rounded-xl font-semibold backdrop-blur-md bg-white/10 dark:bg-white/10 border border-neutral-200 dark:border-white/20 transition-all duration-150 ${
-              mode === "type"
-                ? "bg-white/30 dark:bg-white/30 text-orange-500 border-orange-400 shadow-lg"
-                : "hover:bg-white/20 dark:hover:bg-white/20 text-neutral-600 dark:text-neutral-200"
-            }`}
-          >
-            Type
-          </button>
-        </div>
+      {/* Mode Toggle */}
+      <div className="flex justify-center gap-2 mb-6 w-full">
+        <button
+          onClick={() => setMode("upload")}
+          className={`px-6 py-2 rounded-xl font-semibold backdrop-blur-md bg-white/10 dark:bg-white/10 border border-neutral-200 dark:border-white/20 transition-all duration-150 ${
+            mode === "upload"
+              ? "bg-white/30 dark:bg-white/30 text-orange-500 border-orange-400 shadow-lg"
+              : "hover:bg-white/20 dark:hover:bg-white/20 text-neutral-600 dark:text-neutral-200"
+          }`}
+        >
+          Upload
+        </button>
+        <button
+          onClick={() => setMode("type")}
+          className={`px-6 py-2 rounded-xl font-semibold backdrop-blur-md bg-white/10 dark:bg-white/10 border border-neutral-200 dark:border-white/20 transition-all duration-150 ${
+            mode === "type"
+              ? "bg-white/30 dark:bg-white/30 text-orange-500 border-orange-400 shadow-lg"
+              : "hover:bg-white/20 dark:hover:bg-white/20 text-neutral-600 dark:text-neutral-200"
+          }`}
+        >
+          Type
+        </button>
+      </div>
+
+      {/* Upload/Type Interface */}
+      <div className="mb-8">
         {mode === "upload" ? (
           <div className="w-full">
             <div
@@ -348,6 +498,8 @@ const KnowledgeBase = () => {
           </form>
         )}
       </div>
+
+      {/* Search */}
       <input
         type="text"
         placeholder="Search documents..."
@@ -355,6 +507,8 @@ const KnowledgeBase = () => {
         onChange={(e) => setSearch(e.target.value)}
         className="mb-6 px-4 py-2 rounded-lg bg-white/10 dark:bg-white/10 backdrop-blur-md text-black dark:text-white w-full border border-neutral-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-neutral-500 dark:placeholder:text-neutral-300"
       />
+
+      {/* Documents Grid */}
       <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredArticles.length === 0 ? (
           <div className="text-neutral-500 dark:text-neutral-400 text-center col-span-full">
@@ -391,4 +545,75 @@ const KnowledgeBase = () => {
   );
 };
 
+const KnowledgeBase = () => {
+  const { user, isSignedIn, loading } = useAuth();
+  const [knowledgeBases, setKnowledgeBases] = useState(dummyKnowledgeBases);
+  const [selectedKB, setSelectedKB] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="bg-gray-100 dark:bg-black w-full h-full rounded-l-2xl flex flex-col items-center justify-center text-neutral-700 dark:text-white p-8">
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-4xl">⏳</div>
+          <div className="text-xl text-neutral-600 dark:text-neutral-300">
+            Loading...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show sign-in prompt if user is not signed in
+  if (!isSignedIn) {
+    return <SignInPrompt />;
+  }
+
+  const handleCreateKB = (newKB) => {
+    setKnowledgeBases([...knowledgeBases, newKB]);
+  };
+
+  const handleUpdateKB = (updatedKB) => {
+    setKnowledgeBases(prev => 
+      prev.map(kb => kb.id === updatedKB.id ? updatedKB : kb)
+    );
+  };
+
+  return (
+    <div className="bg-gray-100 dark:bg-black w-full h-full rounded-l-2xl flex flex-col items-center text-neutral-700 dark:text-white p-8 overflow-auto">
+      <div className="w-full flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-black dark:text-white">
+          Knowledge Base
+        </h1>
+        <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+          <span>👋</span>
+          <span>Welcome, {user.name}!</span>
+        </div>
+      </div>
+
+      {selectedKB ? (
+        <KnowledgeBaseDetail
+          knowledgeBase={selectedKB}
+          onBack={() => setSelectedKB(null)}
+          onUpdateKB={handleUpdateKB}
+        />
+      ) : (
+        <KnowledgeBaseList
+          knowledgeBases={knowledgeBases}
+          onSelect={setSelectedKB}
+          onCreateNew={() => setShowCreateModal(true)}
+        />
+      )}
+
+      <CreateKnowledgeBaseModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreateKB}
+      />
+    </div>
+  );
+};
+
 export default KnowledgeBase;
+

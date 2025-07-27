@@ -14,6 +14,7 @@ import Tools from "./pages/tools";
 import ChatBot from "./pages/chatbot";
 import KnowledgeBase from "./pages/knowledgebase";
 import Profile from "./pages/profile";
+import ChatbotCustomization from "./pages/customization";
 import { useAuth } from "../context/authContext";
 
 const links = [
@@ -25,8 +26,8 @@ const links = [
     ),
   },
   {
-    label: "Tools",
-    page: "Tools",
+    label: "Customization",
+    page: "Customization",
     icon: (
       <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
     ),
@@ -151,7 +152,7 @@ const App = () => {
   const { user, isSignedIn, loading } = useAuth();
 
   let PageComponent = null;
-  if (selectedPage === "Tools") PageComponent = Tools;
+  if (selectedPage === "Customization") PageComponent = ChatbotCustomization;
   else if (selectedPage === "chatbot") PageComponent = ChatBot;
   else if (selectedPage === "knowledgebase") PageComponent = KnowledgeBase;
   else if (selectedPage === "profile") PageComponent = Profile;
@@ -159,7 +160,7 @@ const App = () => {
   return (
     <div
       className={cn(
-        "mx-auto flex w-screen h-screen max-w-none flex-1 flex-col overflow-hidden rounded-none border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800"
+        "mx-auto flex w-screen h-screen max-w-none flex-1 flex-col overflow-hidden rounded-none border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
       )}
     >
       <Sidebar open={open} setOpen={setOpen}>
