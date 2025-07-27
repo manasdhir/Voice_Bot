@@ -62,10 +62,12 @@ export default function VoiceBot() {
           user_name: user.name,
           user_email: user.email,
           timestamp: new Date().toISOString(),
-        };
+        }
+
         ws.send(JSON.stringify(userInfo));
         console.log("👤 User info sent:", userInfo);
       } else {
+        ws.send(JSON.stringify({ status: "anon" }));
         console.log("👤 Anonymous user connected");
       }
     };

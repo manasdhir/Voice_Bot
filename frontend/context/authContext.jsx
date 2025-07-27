@@ -13,6 +13,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSignedIn, setIsSignedIn] = useState(false);
 
@@ -21,10 +22,12 @@ export const AuthProvider = ({ children }) => {
     const checkUser = async () => {
       try {
         const {
-          data: { user },
+          data: { user, session },
         } = await supabase.auth.getUser();
-        if (user) {
+        
+        if (user && session) {
           setIsSignedIn(true);
+          setSession(session);
           setUser({
             id: user.id,
             name:
@@ -50,8 +53,9 @@ export const AuthProvider = ({ children }) => {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN") {
         const user = session?.user;
-        if (user) {
+        if (user && session) {
           setIsSignedIn(true);
+          setSession(session);
           setUser({
             id: user.id,
             name:
@@ -64,7 +68,11 @@ export const AuthProvider = ({ children }) => {
         }
       } else if (event === "SIGNED_OUT") {
         setIsSignedIn(false);
+        setSession(null);
         setUser(null);
+      } else if (event === "TOKEN_REFRESHED") {
+        // Update session when token is refreshed
+        setSession(session);
       }
     });
 
@@ -82,7 +90,7 @@ export const AuthProvider = ({ children }) => {
           password: password,
         });
 
-      if (signInData.user) {
+      if (signInData.user && signInData.session) {
         // User exists and signed in successfully
         console.log("User signed in successfully");
         return { success: true, message: "Signed in successfully!" };
@@ -184,6 +192,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    session,
     isSignedIn,
     loading,
     signInOrCreateUser,

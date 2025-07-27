@@ -10,7 +10,7 @@ def read_pdf(file: UploadFile) -> str:
         text = "\n".join(page.extract_text() or "" for page in pdf.pages)
     return text
 
-async def process_document_upload(file: UploadFile):
+async def process_document_upload(file: UploadFile, userid: str):
     try:
         filename = file.filename
         if not filename.lower().endswith(".pdf"):
@@ -26,13 +26,12 @@ async def process_document_upload(file: UploadFile):
 
         # Batch create Document objects with metadata
         docs = [
-            Document(page_content=chunk, metadata={"source": filename})
+            Document(page_content=chunk, metadata={"source": filename, "userid": userid})
             for chunk in chunks
         ]
 
         # ✅ Batch embed & insert
         vectorstore.add_documents(docs)
-        vectorstore.persist()
 
         return {"status": "uploaded", "chunks": len(docs), "file": filename}
 

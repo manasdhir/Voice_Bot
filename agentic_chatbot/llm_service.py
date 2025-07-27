@@ -10,6 +10,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from typing import Annotated
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
+from langchain_openai import ChatOpenAI
 
 # State definition
 class State(TypedDict):
@@ -25,58 +26,64 @@ llm = ChatGroq(
     temperature=0.7,
 )
 
-# System message for voicebot behavior
-system_prompt = SystemMessage(content="You are an AI voice assistant. Respond in a friendly, conversational tone.")
-search_toool=TavilySearch(max_results=2)
-tools=[search_toool, search_docs]
-llm_with_tools=llm.bind_tools(tools)
-
-# LLM node
-def llm_node(state:State):
-    messages = state["messages"]
-    if not any(isinstance(m, SystemMessage) for m in messages):
-        messages.insert(0, system_prompt)
-    return {"messages":[llm_with_tools.invoke(state["messages"])]}  # ✅ Only return new message
 
 
-# Build the graph
-def create_graph():
-    memory = MemorySaver() 
+def create_graph(config: dict):
+    llm = ChatOpenAI(
+    model=config['model_name'],
+    api_key=config['api_key'],
+    base_url=config['api_url'],  # Any OpenAI-compatible endpoint
+    temperature=config['temperature'],
+    max_tokens= None if config['max_tokens']==-1 else config['max_tokens']
+)
+    search_toool=TavilySearch(max_results=2)
+    tools = [search_docs,search_toool]
+    llm_with_tools = llm.bind_tools(tools)
+    async def llm_node(state: State):
+        response = await llm_with_tools.ainvoke(state["messages"])
+        return {"messages": [response]}
+    memory = MemorySaver()
     builder = StateGraph(State)
     builder.add_node("llm_with_tools", llm_node)
-    tool_node=ToolNode(tools=tools)
-    builder.add_node("tools",tool_node)
+    tool_node = ToolNode(tools=tools)
+    builder.add_node("tools", tool_node)
     builder.add_conditional_edges("llm_with_tools", tools_condition)
-    builder.add_edge("tools","llm_with_tools")
+    builder.add_edge("tools", "llm_with_tools")
     builder.add_edge(START, "llm_with_tools")
-
     builder.add_edge("llm_with_tools", END)
     return builder.compile(checkpointer=memory)
+  
 
-# Create the graph instance
-graph = create_graph()
+# Build basic graph (no tools, no memory)
+def create_basic_graph():
+    async def llm_basic_node(state: State):
+        messages = state["messages"]
+        system_prompt=SystemMessage(content="""You are a helpful and friendly voice AI assistant. Your responses should be:
 
-if __name__ == "__main__":
-    try:
-        # Save the graph image
-        with open("graph.png", "wb") as f:
-            f.write(graph.get_graph().draw_mermaid_png())
-        print("✅ Graph saved as 'graph.png'")
-    except Exception as e:
-        print("❌ Failed to render/save graph image.")
-        print("Error:", e)
+    - Conversational and natural, as if speaking to a friend
+    - Concise but informative - aim for 1-3 sentences unless more detail is specifically requested
+    - Clear and easy to understand when spoken aloud
+    - Engaging and personable while remaining professional
+    - Avoid overly complex language or long lists that are hard to follow in audio format
 
-    # 🔍 Test tool invocation with a user prompt
-    from langchain_core.messages import HumanMessage
+    When responding:
+    - Use a warm, approachable tone
+    - Speak in a natural rhythm suitable for text-to-speech
+    - If you need to provide multiple items or steps, break them into digestible chunks
+    - Ask clarifying questions when needed to better assist the user
+    - Acknowledge when you don't know something rather than guessing
 
-    # Define a tool-activating test prompt
-    test_prompt = HumanMessage(content="search about AI project proposal and give me a brief")
+    Remember that users are interacting with you through voice, so structure your responses to be easily understood when heard rather than read.""")
+        if not any(isinstance(m, SystemMessage) for m in messages):
+            messages.insert(0, system_prompt)
+        return {"messages": [llm.invoke(messages)]}
+    builder = StateGraph(State)
+    builder.add_node("llm_basic", llm_basic_node)
+    builder.set_entry_point("llm_basic")
+    builder.add_edge("llm_basic", END)
+    return builder.compile()  # No checkpointing
 
-    # Run the graph
-    inputs = {"messages": [test_prompt]}
-    config={"configurable":{"thread_id":"1"}}
-    for output in graph.stream(inputs,config=config):
-        print("\n--- Step Output ---")
-        print(output)
-    
-    print("\n✅ Graph execution complete.")
+# Create the basic graph instance
+basic_graph = create_basic_graph()
+
+

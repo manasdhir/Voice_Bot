@@ -1,9 +1,10 @@
-from fastapi import FastAPI, WebSocket, UploadFile, File
+from fastapi import FastAPI, WebSocket, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from config import ALLOWED_ORIGINS
 from websocket_handler import handle_websocket_connection
 from document_service import process_document_upload
+from auth import get_current_user
 
 # ---------------- LOGGING CONFIG ----------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -27,5 +28,5 @@ async def ws_pipeline(websocket: WebSocket):
     await handle_websocket_connection(websocket)
 
 @app.post("/upload_doc")
-async def upload_doc(file: UploadFile = File(...)):
-    return await process_document_upload(file)
+async def upload_doc(file: UploadFile = File(...), user=Depends(get_current_user)):
+    return await process_document_upload(file, userid=user['sub'])

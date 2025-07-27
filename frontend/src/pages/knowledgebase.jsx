@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useAuth } from "../../context/authContext";
 
+// ...existing code...
 const dummyArticles = [
   {
     id: 1,
@@ -56,7 +57,9 @@ const SignInPrompt = () => {
 };
 
 const KnowledgeBase = () => {
-  const { user, isSignedIn, loading } = useAuth();
+  const { user, isSignedIn, loading, session } = useAuth();
+  const token = session?.access_token;
+  //console.log(session)
   const [search, setSearch] = useState("");
   const [articles, setArticles] = useState(
     dummyArticles.map((a) => ({ ...a, type: "manual" }))
@@ -101,6 +104,9 @@ const KnowledgeBase = () => {
       const response = await fetch("http://127.0.0.1:8000/upload_doc", {
         method: "POST",
         body: formData,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       if (response.ok) {
