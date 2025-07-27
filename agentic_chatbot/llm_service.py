@@ -1,8 +1,7 @@
 from langgraph.graph import StateGraph, END, START
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from langchain_groq import ChatGroq
-from typing import TypedDict, List, Union
-from config import GROQ_API_KEY, LLM_MODEL_NAME
+from langchain_core.messages import SystemMessage
+from typing import TypedDict
+from config import GEMINI_API_KEY
 from rag_service import search_docs
 from langchain_tavily import TavilySearch
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -19,22 +18,12 @@ class State(TypedDict):
     #messages: Annotated[list[BaseMessage], add_messages]
     #both have same result no need to use BaseMessage
 
-# Initialize LLM
-llm = ChatGroq(
-    model_name=LLM_MODEL_NAME,
-    api_key=GROQ_API_KEY,
-    temperature=0.7,
-)
-
-
-
 def create_graph(config: dict):
     llm = ChatOpenAI(
-    model=config['model_name'],
-    api_key=config['api_key'],
-    base_url=config['api_url'],  # Any OpenAI-compatible endpoint
-    temperature=config['temperature'],
-    max_tokens= None if config['max_tokens']==-1 else config['max_tokens']
+    model="gemini-2.0-flash",
+    api_key=GEMINI_API_KEY,
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",  # Any OpenAI-compatible endpoint
+    temperature=0.7,
 )
     search_toool=TavilySearch(max_results=2)
     tools = [search_docs,search_toool]
@@ -56,6 +45,12 @@ def create_graph(config: dict):
 
 # Build basic graph (no tools, no memory)
 def create_basic_graph():
+    llm = ChatOpenAI(
+    model="gemini-2.0-flash",
+    api_key=GEMINI_API_KEY,
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",  # Any OpenAI-compatible endpoint
+    temperature=0.7,
+)
     async def llm_basic_node(state: State):
         messages = state["messages"]
         system_prompt=SystemMessage(content="""You are a helpful and friendly voice AI assistant. Your responses should be:
@@ -83,7 +78,6 @@ def create_basic_graph():
     builder.add_edge("llm_basic", END)
     return builder.compile()  # No checkpointing
 
-# Create the basic graph instance
-basic_graph = create_basic_graph()
+
 
 

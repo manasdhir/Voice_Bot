@@ -11,7 +11,6 @@ print(SUPABASE_JWT_SECRET)
 def verify_token(token: str):
     try:
         payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
-        print(payload)
         return payload
     except PyJWTError:
         print(PyJWTError)

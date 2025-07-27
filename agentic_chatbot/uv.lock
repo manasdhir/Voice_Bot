@@ -36,6 +36,7 @@ dependencies = [
     { name = "langchain-tavily" },
     { name = "langgraph" },
     { name = "langsmith" },
+    { name = "murf" },
     { name = "openai" },
     { name = "pdfplumber" },
     { name = "pip" },
@@ -64,6 +65,7 @@ requires-dist = [
     { name = "langchain-tavily", specifier = ">=0.2.7" },
     { name = "langgraph", specifier = ">=0.5.1" },
     { name = "langsmith", specifier = ">=0.4.4" },
+    { name = "murf", specifier = ">=2.0.1" },
     { name = "openai", specifier = ">=1.93.0" },
     { name = "pdfplumber", specifier = ">=0.11.7" },
     { name = "pip", specifier = ">=25.1.1" },
@@ -1729,6 +1731,21 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/b6/d6/a9d2c808f2c489ad199723197419207ecbfbc1776f6e155e1ecea9c883aa/multidict-6.6.3-cp313-cp313t-win_amd64.whl", hash = "sha256:9f97e181f344a0ef3881b573d31de8542cc0dbc559ec68c8f8b5ce2c2e91646d", size = 53011, upload-time = "2025-06-30T15:53:11.038Z" },
     { url = "https://files.pythonhosted.org/packages/f2/40/b68001cba8188dd267590a111f9661b6256debc327137667e832bf5d66e8/multidict-6.6.3-cp313-cp313t-win_arm64.whl", hash = "sha256:ce8b7693da41a3c4fde5871c738a81490cea5496c671d74374c8ab889e1834fb", size = 45254, upload-time = "2025-06-30T15:53:12.421Z" },
     { url = "https://files.pythonhosted.org/packages/d8/30/9aec301e9772b098c1f5c0ca0279237c9766d94b97802e9888010c64b0ed/multidict-6.6.3-py3-none-any.whl", hash = "sha256:8db10f29c7541fc5da4defd8cd697e1ca429db743fa716325f236079b96f775a", size = 12313, upload-time = "2025-06-30T15:53:45.437Z" },
+]
+
+[[package]]
+name = "murf"
+version = "2.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/20/cd/2b8a896cfd25a6a149fa48e349aba01f8dfb23738f48b56bd351c3db436b/murf-2.0.1.tar.gz", hash = "sha256:0bd12042afe132ff3034dd2bed50dc7de825083276793dfc044f6300b968513d", size = 40643, upload-time = "2025-07-24T06:43:12.74Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/2c/7dbe3bf21c6616bf477d3fe0cd06cad081ce49a1054540e017bd270eee85/murf-2.0.1-py3-none-any.whl", hash = "sha256:d22c41afa6c74a0d3ea78b6822da0c4df88aa3c7c42524e02eddb1e97dea8fe1", size = 77274, upload-time = "2025-07-24T06:43:11.566Z" },
 ]
 
 [[package]]
