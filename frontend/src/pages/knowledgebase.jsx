@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { useAuth } from "../../context/authContext";
 
@@ -13,7 +12,8 @@ const dummyKnowledgeBases = [
       {
         id: 1,
         title: "How to use the Voice Bot?",
-        summary: "A quick start guide to using the Voice Bot for your daily tasks.",
+        summary:
+          "A quick start guide to using the Voice Bot for your daily tasks.",
         type: "manual",
       },
       {
@@ -65,7 +65,8 @@ const SignInPrompt = () => {
         <div className="text-6xl">🔒</div>
         <h2 className="text-2xl font-bold text-orange-400">Knowledge Base</h2>
         <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed">
-          You need to sign in to access the Knowledge Base. Create knowledge bases, upload documents, and organize your information.
+          You need to sign in to access the Knowledge Base. Create knowledge
+          bases, upload documents, and organize your information.
         </p>
         <p className="text-neutral-500 dark:text-neutral-400 text-sm">
           Please go to the Profile section to sign in or create an account.
@@ -85,16 +86,16 @@ const CreateKnowledgeBaseModal = ({ isOpen, onClose, onCreate }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    
+
     onCreate({
       id: Date.now().toString(),
       name: form.name,
       description: form.description,
       docCount: 0,
-      created: new Date().toISOString().split('T')[0],
+      created: new Date().toISOString().split("T")[0],
       articles: [],
     });
-    
+
     setForm({ name: "", description: "" });
     onClose();
   };
@@ -104,8 +105,10 @@ const CreateKnowledgeBaseModal = ({ isOpen, onClose, onCreate }) => {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-neutral-200 dark:border-white/20 max-w-md w-full">
-        <h3 className="text-2xl font-bold text-black dark:text-white mb-6">Create Knowledge Base</h3>
-        
+        <h3 className="text-2xl font-bold text-black dark:text-white mb-6">
+          Create Knowledge Base
+        </h3>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-300 mb-2">
@@ -120,20 +123,22 @@ const CreateKnowledgeBaseModal = ({ isOpen, onClose, onCreate }) => {
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-300 mb-2">
               Description
             </label>
             <textarea
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
               className="w-full px-3 py-2 rounded-lg bg-white/20 dark:bg-white/20 text-black dark:text-white border border-neutral-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-neutral-500 dark:placeholder:text-neutral-300"
               placeholder="Enter description (optional)"
               rows={3}
             />
           </div>
-          
+
           <div className="flex gap-3 mt-6">
             <button
               type="submit"
@@ -160,7 +165,9 @@ const KnowledgeBaseList = ({ knowledgeBases, onSelect, onCreateNew }) => {
     <div className="w-full">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-semibold text-black dark:text-white">Your Knowledge Bases</h2>
+          <h2 className="text-2xl font-semibold text-black dark:text-white">
+            Your Knowledge Bases
+          </h2>
           <p className="text-neutral-600 dark:text-neutral-300 text-sm mt-1">
             Create and manage your knowledge collections
           </p>
@@ -187,15 +194,15 @@ const KnowledgeBaseList = ({ knowledgeBases, onSelect, onCreateNew }) => {
                 {kb.created}
               </div>
             </div>
-            
+
             <h3 className="text-lg font-semibold text-black dark:text-white mb-2 group-hover:text-orange-400 transition-colors">
               {kb.name}
             </h3>
-            
+
             <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4 line-clamp-2">
               {kb.description || "No description"}
             </p>
-            
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
                 <span>📄</span>
@@ -207,7 +214,7 @@ const KnowledgeBaseList = ({ knowledgeBases, onSelect, onCreateNew }) => {
             </div>
           </div>
         ))}
-        
+
         {knowledgeBases.length === 0 && (
           <div className="col-span-full text-center py-12">
             <div className="text-6xl mb-4">📚</div>
@@ -233,7 +240,7 @@ const KnowledgeBaseList = ({ knowledgeBases, onSelect, onCreateNew }) => {
 const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
   const { session } = useAuth();
   const token = session?.access_token;
-  
+
   const [search, setSearch] = useState("");
   const [articles, setArticles] = useState(knowledgeBase.articles || []);
   const [form, setForm] = useState({ title: "", summary: "" });
@@ -246,7 +253,7 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
   const filteredArticles = articles.filter(
     (a) =>
       a.title.toLowerCase().includes(search.toLowerCase()) ||
-      a.summary.toLowerCase().includes(search.toLowerCase())
+      a.summary.toLowerCase().includes(search.toLowerCase()),
   );
 
   const uploadFileToServer = async (file) => {
@@ -277,23 +284,23 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
   const handleAdd = (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.summary.trim()) return;
-    
+
     const newArticle = {
       id: Date.now(),
       title: form.title,
       summary: form.summary,
       type: "manual",
     };
-    
+
     setArticles([...articles, newArticle]);
-    
+
     // Update the knowledge base
     onUpdateKB({
       ...knowledgeBase,
       articles: [...articles, newArticle],
       docCount: articles.length + 1,
     });
-    
+
     setForm({ title: "", summary: "" });
   };
 
@@ -308,17 +315,17 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
     for (const file of files) {
       try {
         const result = await uploadFileToServer(file);
-        
+
         const newArticle = {
           id: Date.now() + Math.random(),
           title: file.name,
-          summary: `${file.size} bytes - ${result.success ? 'Uploaded successfully' : `Upload failed: ${result.error}`}`,
+          summary: `${file.size} bytes - ${result.success ? "Uploaded successfully" : `Upload failed: ${result.error}`}`,
           type: file.type || "file",
           uploaded: result.success,
         };
 
-        setArticles(prev => [...prev, newArticle]);
-        
+        setArticles((prev) => [...prev, newArticle]);
+
         if (result.success) {
           setUploadStatus(`${file.name} uploaded successfully!`);
         } else {
@@ -342,17 +349,17 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
     for (const file of files) {
       try {
         const result = await uploadFileToServer(file);
-        
+
         const newArticle = {
           id: Date.now() + Math.random(),
           title: file.name,
-          summary: `${file.size} bytes - ${result.success ? 'Uploaded successfully' : `Upload failed: ${result.error}`}`,
+          summary: `${file.size} bytes - ${result.success ? "Uploaded successfully" : `Upload failed: ${result.error}`}`,
           type: file.type || "file",
           uploaded: result.success,
         };
 
-        setArticles(prev => [...prev, newArticle]);
-        
+        setArticles((prev) => [...prev, newArticle]);
+
         if (result.success) {
           setUploadStatus(`${file.name} uploaded successfully!`);
         } else {
@@ -381,7 +388,9 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
           ←
         </button>
         <div>
-          <h2 className="text-2xl font-semibold text-black dark:text-white">{knowledgeBase.name}</h2>
+          <h2 className="text-2xl font-semibold text-black dark:text-white">
+            {knowledgeBase.name}
+          </h2>
           <p className="text-neutral-600 dark:text-neutral-300 text-sm">
             {knowledgeBase.description || "No description"}
           </p>
@@ -457,9 +466,9 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
                   uploadStatus.includes("successfully")
                     ? "bg-green-500/20 text-green-600 dark:text-green-300 border border-green-500/30"
                     : uploadStatus.includes("failed") ||
-                      uploadStatus.includes("Error")
-                    ? "bg-red-500/20 text-red-600 dark:text-red-300 border border-red-500/30"
-                    : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30"
+                        uploadStatus.includes("Error")
+                      ? "bg-red-500/20 text-red-600 dark:text-red-300 border border-red-500/30"
+                      : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30"
                 }`}
               >
                 {uploadStatus}
@@ -575,8 +584,8 @@ const KnowledgeBase = () => {
   };
 
   const handleUpdateKB = (updatedKB) => {
-    setKnowledgeBases(prev => 
-      prev.map(kb => kb.id === updatedKB.id ? updatedKB : kb)
+    setKnowledgeBases((prev) =>
+      prev.map((kb) => (kb.id === updatedKB.id ? updatedKB : kb)),
     );
   };
 
@@ -616,4 +625,3 @@ const KnowledgeBase = () => {
 };
 
 export default KnowledgeBase;
-
