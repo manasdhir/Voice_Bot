@@ -25,8 +25,8 @@ def create_graph(config: dict):
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",  # Any OpenAI-compatible endpoint
     temperature=0.7,
 )
-    search_toool=TavilySearch(max_results=2)
-    tools = [search_docs,search_toool]
+    #search_toool=TavilySearch(max_results=2)
+    tools = [search_docs]
     llm_with_tools = llm.bind_tools(tools)
     async def llm_node(state: State):
         response = await llm_with_tools.ainvoke(state["messages"])

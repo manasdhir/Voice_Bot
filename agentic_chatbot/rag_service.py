@@ -41,7 +41,7 @@ vectorstore = QdrantVectorStore(
 
 @tool
 def search_docs(query: str,config: RunnableConfig) -> str:
-    """Search the uploaded documents (RAG) for relevant context."""
+    """Search the knowledge base for relevant context."""
     userid=config["configurable"].get("thread_id")
     print(userid)
     metadata_filter = Filter(

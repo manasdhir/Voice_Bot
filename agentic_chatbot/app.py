@@ -6,12 +6,16 @@ from websocket_handler import handle_websocket_connection
 from document_service import process_document_upload
 from auth import get_current_user
 
+from custom_endpoints import router as persona_router
+
 # ---------------- LOGGING CONFIG ----------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("voicebot")
 
 # ---------------- INIT FastAPI ----------------
 app = FastAPI()
+
+app.include_router(persona_router)
 
 app.add_middleware(
     CORSMiddleware,

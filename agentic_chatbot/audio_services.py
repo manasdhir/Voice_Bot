@@ -38,7 +38,9 @@ async def murf_tts(text: str, voice_id: str = "en-US-natalie", format: str = "MP
         format=format,
         sample_rate=44100.0
     )
-    return resp
+    chunks = [chunk async for chunk in resp]
+    full_audio = b''.join(chunks)
+    return full_audio
 
 
 

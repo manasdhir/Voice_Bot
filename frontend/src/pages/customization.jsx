@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../context/authContext";
 
 const languageOptions = [
@@ -140,45 +139,6 @@ const dummyKnowledgeBases = [
   { id: "business", name: "Business Resources", docCount: 12 },
 ];
 
-const defaultPersonas = [
-  {
-    id: "default",
-    name: "Default Assistant",
-    description: "General purpose assistant for daily tasks",
-    icon: "🤖",
-    customPrompt: "You are a helpful AI assistant. You are friendly, professional, and always ready to help with any questions or tasks.",
-    knowledgeBase: "general",
-    language: "en",
-    accent: "en-US",
-    created: "2024-01-15",
-    isActive: true,
-  },
-  {
-    id: "professional",
-    name: "Professional Assistant",
-    description: "Formal and business-oriented helper",
-    icon: "👔",
-    customPrompt: "You are a professional business assistant. Always maintain a formal tone and focus on productivity and efficiency. Provide clear, actionable advice.",
-    knowledgeBase: "business",
-    language: "en",
-    accent: "en-US",
-    created: "2024-01-20",
-    isActive: false,
-  },
-  {
-    id: "creative",
-    name: "Creative Helper",
-    description: "For brainstorming and creative projects",
-    icon: "🎨",
-    customPrompt: "You are a creative companion who loves to brainstorm, think outside the box, and help with artistic endeavors. Be imaginative and inspiring.",
-    knowledgeBase: "personal",
-    language: "en",
-    accent: "en-GB",
-    created: "2024-02-01",
-    isActive: false,
-  },
-];
-
 const SignInPrompt = () => {
   return (
     <div className="bg-gray-100 dark:bg-black w-full h-full rounded-l-2xl flex flex-col items-center justify-center text-neutral-700 dark:text-white p-8">
@@ -201,32 +161,77 @@ const SignInPrompt = () => {
 };
 
 const CreatePersonaModal = ({ isOpen, onClose, onCreate }) => {
+  const { session } = useAuth(); 
+  const token = session?.access_token;
+  
   const [form, setForm] = useState({ 
     name: "", 
     description: "", 
     icon: "🤖",
     customPrompt: "" 
   });
+  
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.customPrompt.trim()) return;
     
-    onCreate({
-      id: Date.now().toString(),
-      name: form.name,
-      description: form.description,
-      icon: form.icon,
-      customPrompt: form.customPrompt,
-      knowledgeBase: "general",
-      language: "en",
-      accent: "en-US",
-      created: new Date().toISOString().split('T')[0],
-      isActive: false,
-    });
+    setIsCreating(true);
+    setError("");
     
-    setForm({ name: "", description: "", icon: "🤖", customPrompt: "" });
-    onClose();
+    try {
+      const response = await fetch('http://127.0.0.1:8000/personas/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: form.name,
+          description: form.description,
+          icon: form.icon,
+          custom_prompt: form.customPrompt,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to create persona');
+      }
+
+      const createdPersona = await response.json();
+      
+      // Transform API response to match frontend format
+      const frontendPersona = {
+        id: createdPersona.id,
+        user_id: createdPersona.user_id,
+        name: createdPersona.name,
+        description: createdPersona.description,
+        icon: createdPersona.icon,
+        custom_prompt: createdPersona.custom_prompt,
+        knowledge_base: createdPersona.knowledge_base,
+        language: createdPersona.language,
+        accent: createdPersona.accent,
+        created_at: createdPersona.created_at,
+        updated_at: createdPersona.updated_at,
+        source: "user",
+        is_default: false,
+        isActive: false, // New personas are not active by default
+      };
+      
+      onCreate(frontendPersona);
+      setForm({ name: "", description: "", icon: "🤖", customPrompt: "" });
+      onClose();
+      
+    } catch (error) {
+      console.error('Error creating persona:', error);
+      setError(error.message);
+      setTimeout(() => setError(""), 5000);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -248,6 +253,7 @@ const CreatePersonaModal = ({ isOpen, onClose, onCreate }) => {
               className="w-full px-3 py-2 rounded-lg bg-white/20 dark:bg-white/20 text-black dark:text-white border border-neutral-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-neutral-500 dark:placeholder:text-neutral-300"
               placeholder="Enter persona name"
               required
+              disabled={isCreating}
             />
           </div>
           
@@ -261,6 +267,7 @@ const CreatePersonaModal = ({ isOpen, onClose, onCreate }) => {
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="w-full px-3 py-2 rounded-lg bg-white/20 dark:bg-white/20 text-black dark:text-white border border-neutral-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-neutral-500 dark:placeholder:text-neutral-300"
               placeholder="Brief description (optional)"
+              disabled={isCreating}
             />
           </div>
 
@@ -274,6 +281,7 @@ const CreatePersonaModal = ({ isOpen, onClose, onCreate }) => {
               onChange={(e) => setForm({ ...form, icon: e.target.value })}
               className="w-full px-3 py-2 rounded-lg bg-white/20 dark:bg-white/20 text-black dark:text-white border border-neutral-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-neutral-500 dark:placeholder:text-neutral-300"
               placeholder="Choose an emoji"
+              disabled={isCreating}
             />
           </div>
 
@@ -288,22 +296,35 @@ const CreatePersonaModal = ({ isOpen, onClose, onCreate }) => {
               placeholder="Define how this persona should behave and respond..."
               rows={4}
               required
+              disabled={isCreating}
             />
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
               Note: The prompt cannot be changed after creation
             </p>
           </div>
+
+          {error && (
+            <div className="bg-red-500/20 text-red-600 dark:text-red-300 border border-red-500/30 rounded-lg p-3 text-center text-sm">
+              {error}
+            </div>
+          )}
           
           <div className="flex gap-3 mt-6">
             <button
               type="submit"
-              className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors font-medium"
+              disabled={isCreating}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                isCreating
+                  ? "bg-neutral-400 cursor-not-allowed"
+                  : "bg-orange-500 text-white hover:bg-orange-600"
+              }`}
             >
-              Create Persona
+              {isCreating ? "Creating..." : "Create Persona"}
             </button>
             <button
               type="button"
               onClick={onClose}
+              disabled={isCreating}
               className="flex-1 px-4 py-2 rounded-lg bg-neutral-500 text-white hover:bg-neutral-600 transition-colors font-medium"
             >
               Cancel
@@ -320,11 +341,12 @@ const PersonaList = ({ personas, onSelect, onCreateNew, onToggleActive }) => {
 
   return (
     <div className="w-full">
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-semibold text-black dark:text-white">Your Chatbot Personas</h2>
+          <h2 className="text-2xl font-semibold text-black dark:text-white">Your Personas</h2>
           <p className="text-neutral-600 dark:text-neutral-300 text-sm mt-1">
-            Create and customize your AI assistant personalities
+            Choose from default personas or create your own custom AI assistant personalities
           </p>
           {activePersona && (
             <div className="mt-2 flex items-center gap-2 text-sm">
@@ -343,6 +365,7 @@ const PersonaList = ({ personas, onSelect, onCreateNew, onToggleActive }) => {
         </button>
       </div>
 
+      {/* Unified Personas Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {personas.map((persona) => (
           <div
@@ -359,7 +382,7 @@ const PersonaList = ({ personas, onSelect, onCreateNew, onToggleActive }) => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onToggleActive(persona.id);
+                    onToggleActive(persona.id, persona.is_default);
                   }}
                   className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                     persona.isActive
@@ -374,7 +397,7 @@ const PersonaList = ({ personas, onSelect, onCreateNew, onToggleActive }) => {
                   />
                 </button>
                 <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                  {persona.created}
+                  {persona.created_at?.split('T')[0]}
                 </div>
               </div>
             </div>
@@ -394,7 +417,14 @@ const PersonaList = ({ personas, onSelect, onCreateNew, onToggleActive }) => {
             <div className="space-y-2 mb-4">
               <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
                 <span>📚</span>
-                <span>{dummyKnowledgeBases.find(kb => kb.id === persona.knowledgeBase)?.name || "General"}</span>
+                <span>
+                  {persona.knowledge_base === "none" || !persona.knowledge_base
+                    ? persona.is_default 
+                      ? "Preset" 
+                      : "None"
+                    : dummyKnowledgeBases.find(kb => kb.id === persona.knowledge_base)?.name || "General"
+                  }
+                </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
                 <span>🌍</span>
@@ -402,17 +432,24 @@ const PersonaList = ({ personas, onSelect, onCreateNew, onToggleActive }) => {
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
                 <span>🗣️</span>
-                <span>{languageOptions.find(l => l.code === persona.language)?.accents.find(a => a.code === persona.accent)?.name || "American"}</span>
+                <span>{languageOptions.find(l => l.code === persona.language)?.accents.find(a => a.code === persona.accent)?.name || "Indian"}</span>
               </div>
             </div>
             
             <div className="flex items-center justify-between">
-              <div className={`text-xs px-2 py-1 rounded-full ${
-                persona.isActive 
-                  ? "bg-orange-500/20 text-orange-600 dark:text-orange-300 font-medium"
-                  : "bg-neutral-500/20 text-neutral-600 dark:text-neutral-300"
-              }`}>
-                {persona.isActive ? "● Active" : "○ Inactive"}
+              <div className="flex items-center gap-2">
+                <div className={`text-xs px-2 py-1 rounded-full ${
+                  persona.isActive 
+                    ? "bg-orange-500/20 text-orange-600 dark:text-orange-300 font-medium"
+                    : "bg-neutral-500/20 text-neutral-600 dark:text-neutral-300"
+                }`}>
+                  {persona.isActive ? "● Active" : "○ Inactive"}
+                </div>
+                {persona.is_default && (
+                  <div className="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-300">
+                    Default
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => onSelect(persona)}
@@ -432,10 +469,10 @@ const PersonaList = ({ personas, onSelect, onCreateNew, onToggleActive }) => {
           <div className="col-span-full text-center py-12">
             <div className="text-6xl mb-4">🤖</div>
             <h3 className="text-xl font-semibold text-neutral-600 dark:text-neutral-300 mb-2">
-              No Personas Created
+              No Personas Available
             </h3>
             <p className="text-neutral-500 dark:text-neutral-400 mb-4">
-              Create your first persona to get started
+              Create your first custom persona to get started.
             </p>
             <button
               onClick={onCreateNew}
@@ -454,12 +491,13 @@ const PersonaDetail = ({ persona, onBack, onUpdatePersona }) => {
   const { session } = useAuth();
   const token = session?.access_token;
   
-  const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState(persona.knowledgeBase);
+  const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState(persona.knowledge_base || persona.knowledgeBase);
   const [selectedLanguage, setSelectedLanguage] = useState(persona.language);
   const [selectedAccent, setSelectedAccent] = useState(persona.accent);
   const [isTestingVoice, setIsTestingVoice] = useState(false);
   const [testText, setTestText] = useState("Hello! This is a voice test. How do you like my voice?");
   const [voiceTestStatus, setVoiceTestStatus] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const audioRef = useRef();
 
   const currentLanguage = languageOptions.find(lang => lang.code === selectedLanguage);
@@ -520,21 +558,71 @@ const PersonaDetail = ({ persona, onBack, onUpdatePersona }) => {
     }
   };
 
-  const saveSettings = () => {
-    const updatedPersona = {
-      ...persona,
-      knowledgeBase: selectedKnowledgeBase,
-      language: selectedLanguage,
-      accent: selectedAccent,
-    };
-    
-    onUpdatePersona(updatedPersona);
-    setVoiceTestStatus("Settings saved successfully!");
-    setTimeout(() => setVoiceTestStatus(""), 3000);
+  const saveSettings = async () => {
+    setIsSaving(true);
+    setVoiceTestStatus("Saving settings...");
+
+    try {
+      let endpoint;
+      if (persona.is_default) {
+        // For default personas, use the update endpoint (to be implemented later)
+        endpoint = `http://127.0.0.1:8000/personas/default/${persona.id}/update`;
+      } else {
+        // For user personas, use the existing update endpoint
+        endpoint = `http://127.0.0.1:8000/personas/${persona.id}`;
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          knowledge_base: selectedKnowledgeBase,
+          language: selectedLanguage,
+          accent: selectedAccent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to save settings');
+      }
+
+      if (persona.is_default) {
+        // For default personas, just update locally since backend implementation is pending
+        const updatedPersona = {
+          ...persona,
+          knowledge_base: selectedKnowledgeBase,
+          language: selectedLanguage,
+          accent: selectedAccent,
+        };
+        onUpdatePersona(updatedPersona);
+      } else {
+        // For user personas, use the API response
+        const updatedPersona = await response.json();
+        const frontendPersona = {
+          ...persona,
+          knowledge_base: updatedPersona.knowledge_base,
+          language: updatedPersona.language,
+          accent: updatedPersona.accent,
+        };
+        onUpdatePersona(frontendPersona);
+      }
+      
+      setVoiceTestStatus("Settings saved successfully!");
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      setVoiceTestStatus(`Error: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setVoiceTestStatus(""), 3000);
+    }
   };
 
   const resetSettings = () => {
-    setSelectedKnowledgeBase(persona.knowledgeBase);
+    setSelectedKnowledgeBase(persona.knowledge_base || persona.knowledgeBase);
     setSelectedLanguage(persona.language);
     setSelectedAccent(persona.accent);
     setTestText("Hello! This is a voice test. How do you like my voice?");
@@ -565,6 +653,11 @@ const PersonaDetail = ({ persona, onBack, onUpdatePersona }) => {
                 <span className="text-orange-400 font-medium">Currently Active</span>
               </div>
             )}
+            {persona.is_default && (
+              <div className="flex items-center gap-2 text-sm mt-1">
+                <span className="text-blue-400 text-xs">Default Persona</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -578,7 +671,7 @@ const PersonaDetail = ({ persona, onBack, onUpdatePersona }) => {
           </h2>
           <div className="bg-white/10 dark:bg-white/10 rounded-lg p-4 border border-neutral-200 dark:border-white/20">
             <p className="text-neutral-600 dark:text-neutral-300 text-sm leading-relaxed">
-              {persona.customPrompt}
+              {persona.custom_prompt}
             </p>
           </div>
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
@@ -618,7 +711,7 @@ const PersonaDetail = ({ persona, onBack, onUpdatePersona }) => {
           </div>
         </div>
 
-        {/* Voice Settings with Integrated Testing */}
+        {/* Voice Settings */}
         <div className="bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-xl p-6 shadow-lg border border-neutral-200 dark:border-white/20">
           <h2 className="text-xl font-semibold text-black dark:text-white mb-4 flex items-center gap-2">
             <span>🗣️</span>
@@ -709,9 +802,14 @@ const PersonaDetail = ({ persona, onBack, onUpdatePersona }) => {
       <div className="mt-8 flex flex-wrap gap-4 justify-center">
         <button
           onClick={saveSettings}
-          className="px-6 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors font-medium"
+          disabled={isSaving}
+          className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+            isSaving
+              ? "bg-neutral-400 cursor-not-allowed"
+              : "bg-orange-500 text-white hover:bg-orange-600"
+          }`}
         >
-          💾 Save Settings
+          {isSaving ? "Saving..." : "💾 Save Settings"}
         </button>
         <button
           onClick={resetSettings}
@@ -725,13 +823,53 @@ const PersonaDetail = ({ persona, onBack, onUpdatePersona }) => {
 };
 
 const ChatbotCustomization = () => {
-  const { user, isSignedIn, loading } = useAuth();
-  const [personas, setPersonas] = useState(defaultPersonas);
+  const { user, isSignedIn, loading, session } = useAuth();
+  const token = session?.access_token;
+  
+  const [personas, setPersonas] = useState([]);
   const [selectedPersona, setSelectedPersona] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loadingPersonas, setLoadingPersonas] = useState(true);
+
+  // Load all personas on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!isSignedIn || !token) return;
+      
+      try {
+        // Fetch all personas (default + custom) from the single endpoint
+        const response = await fetch('http://127.0.0.1:8000/personas/', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Use the is_active flag directly from the backend
+          const transformedPersonas = data.personas.map(persona => ({
+            ...persona,
+            isActive: persona.is_active, // Use the backend flag directly
+          }));
+          
+          setPersonas(transformedPersonas);
+          console.log(`✅ Loaded ${data.total} personas (${data.default_count} default, ${data.user_count} custom)`);
+        }
+      } catch (error) {
+        console.error('Error fetching personas:', error);
+      } finally {
+        setLoadingPersonas(false);
+      }
+    };
+
+    if (isSignedIn) {
+      fetchData();
+    }
+  }, [isSignedIn, token]);
 
   // Show loading state
-  if (loading) {
+  if (loading || loadingPersonas) {
     return (
       <div className="bg-gray-100 dark:bg-black w-full h-full rounded-l-2xl flex flex-col items-center justify-center text-neutral-700 dark:text-white p-8">
         <div className="flex flex-col items-center gap-4">
@@ -760,13 +898,36 @@ const ChatbotCustomization = () => {
     setSelectedPersona(updatedPersona);
   };
 
-  const handleToggleActive = (personaId) => {
-    setPersonas(prev => 
-      prev.map(persona => ({
-        ...persona,
-        isActive: persona.id === personaId ? !persona.isActive : false // Only one can be active
-      }))
-    );
+  const handleToggleActive = async (personaId, isDefault = false) => {
+    try {
+      let endpoint;
+      if (isDefault) {
+        // For default personas, use the activate default endpoint
+        endpoint = `http://127.0.0.1:8000/personas/default/${personaId}/activate`;
+      } else {
+        // For user personas, use the user persona activate endpoint
+        endpoint = `http://127.0.0.1:8000/personas/${personaId}/activate`;
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        // Update the local state to reflect the new active persona
+        setPersonas(prev => 
+          prev.map(persona => ({
+            ...persona,
+            isActive: persona.id === personaId // Only the selected persona is active
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('Error activating persona:', error);
+    }
   };
 
   return (
@@ -804,4 +965,3 @@ const ChatbotCustomization = () => {
 };
 
 export default ChatbotCustomization;
-

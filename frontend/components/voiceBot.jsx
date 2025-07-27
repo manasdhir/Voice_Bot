@@ -156,6 +156,11 @@ export default function VoiceBot() {
 
       const vad = await MicVAD.new({
         source: stream,
+        noiseCaptureDuration: 1000,        // Learn background for 1 second
+  
+  // SPEECH DETECTION THRESHOLDS  
+  positiveSpeechThreshold: 0.8,      // Higher = less sensitive to noise
+  negativeSpeechThreshold: 0.35,
         onSpeechStart: () => {
           console.log("🟢 Speech started");
           setUserSpeaking(true);

@@ -17,4 +17,4 @@ CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 
 # CORS Configuration
-ALLOWED_ORIGINS = ["http://localhost:5173"]
+ALLOWED_ORIGINS = ["*"]

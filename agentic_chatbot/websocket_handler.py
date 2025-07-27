@@ -58,8 +58,7 @@ async def handle_websocket_connection(websocket: WebSocket):
             audio_stream = await murf_tts(llm_response)  # Get the async generator
             await websocket.send_json({"type": "tts_start"})
 
-            async for audio_chunk in audio_stream:
-                await websocket.send_bytes(audio_chunk)
+            await websocket.send_bytes(audio_stream)
 
             await websocket.send_json({"type": "tts_end"})
 
