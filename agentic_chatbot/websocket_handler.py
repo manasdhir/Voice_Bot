@@ -55,12 +55,12 @@ async def handle_websocket_connection(websocket: WebSocket):
 
             # --- TTS ---
             #tts_wav = groq_tts(llm_response, voice="Fritz-PlayAI")
-            t1=time.time()
-            tts_wav = await murf_tts(llm_response)
-            t2=time.time()
-            print(t2-t1)
+            audio_stream = await murf_tts(llm_response)  # Get the async generator
             await websocket.send_json({"type": "tts_start"})
-            await websocket.send_bytes(tts_wav)
+
+            async for audio_chunk in audio_stream:
+                await websocket.send_bytes(audio_chunk)
+
             await websocket.send_json({"type": "tts_end"})
 
         except WebSocketDisconnect:
