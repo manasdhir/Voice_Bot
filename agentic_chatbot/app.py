@@ -34,3 +34,25 @@ async def ws_pipeline(websocket: WebSocket):
 @app.post("/upload_doc")
 async def upload_doc(file: UploadFile = File(...), user=Depends(get_current_user)):
     return await process_document_upload(file, userid=user['sub'])
+
+from map import MURF_VOICE_MAPPING
+from audio_services import murf_tts
+from io import BytesIO
+from fastapi.responses import StreamingResponse
+@app.post("/test_voice")
+async def test_voice(text: str,lang_code:str, user=Depends(get_current_user)):
+    voice=MURF_VOICE_MAPPING[lang_code]
+    print(voice)
+    audio_data = await murf_tts(text, voice)
+    audio_stream = BytesIO(audio_data)
+        
+    return StreamingResponse(
+            audio_stream,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "attachment; filename=voice_sample.mp3",
+                "X-Voice-ID": voice,
+                "X-Language-Code": lang_code
+            }
+        )
+

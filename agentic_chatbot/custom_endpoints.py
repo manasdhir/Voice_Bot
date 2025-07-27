@@ -99,3 +99,138 @@ async def get_all_personas(user=Depends(get_current_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while fetching personas"
         )
+    
+from custom_supabase import set_active_persona_for_user
+
+class SetActivePersonaRequest(BaseModel):
+    persona_id: str
+    persona_source: str  # "default" or "user"
+
+class SetActivePersonaResponse(BaseModel):
+    success: bool
+    active_persona_id: str
+    persona_source: str
+    user_id: str
+    message: str
+
+from custom_supabase import set_active_persona_for_user
+
+from custom_supabase import set_active_persona_for_user
+
+class SetActivePersonaRequest(BaseModel):
+    persona_source: str  # "default" or "user"
+
+class SetActivePersonaResponse(BaseModel):
+    success: bool
+    active_persona_id: str
+    persona_source: str
+    user_id: str
+    message: str
+
+@router.post("/{persona_id}/activate", response_model=SetActivePersonaResponse)
+async def activate_persona(
+    persona_id: str,
+    request: SetActivePersonaRequest,
+    user=Depends(get_current_user)
+):
+    """Activate a persona (either default or user's custom)"""
+    try:
+        user_id = user['sub']
+        
+        result = await set_active_persona_for_user(
+            user_id=user_id,
+            persona_id=persona_id,
+            persona_source=request.persona_source
+        )
+        
+        print(f"✅ Activated {request.persona_source} persona {persona_id} for user {user_id}")
+        
+        return SetActivePersonaResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error in activate_persona: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while activating persona"
+        )
+
+from custom_supabase import set_inactive_persona_for_user
+
+class SetInactivePersonaResponse(BaseModel):
+    success: bool
+    message: str
+    user_id: str
+    previous_active_persona_id: str
+    previous_persona_source: str
+    default_persona_id: str
+    note: str
+
+@router.post("/deactivate", response_model=SetInactivePersonaResponse)
+async def deactivate_persona(
+    user=Depends(get_current_user)
+):
+    """Deactivate the current active persona (system will fall back to default)"""
+    try:
+        user_id = user['sub']
+        
+        result = await set_inactive_persona_for_user(user_id=user_id)
+        
+        print(f"✅ Deactivated active persona for user {user_id}")
+        
+        return SetInactivePersonaResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error in deactivate_persona: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while deactivating persona"
+        )
+
+from custom_supabase import update_persona_for_user
+
+class UpdatePersonaRequest(BaseModel):
+    knowledge_base: Optional[str] = None
+    language: Optional[str] = None
+    accent: Optional[str] = None
+
+class UpdatePersonaResponse(BaseModel):
+    success: bool
+    persona_id: str
+    user_id: str
+    updated_fields: list[str]
+    persona: dict
+    message: str
+
+@router.post("/{persona_id}", response_model=UpdatePersonaResponse)
+async def update_persona(
+    persona_id: str,
+    request: UpdatePersonaRequest,
+    user=Depends(get_current_user)
+):
+    try:
+        user_id = user['sub']
+        
+        result = await update_persona_for_user(
+            user_id=user_id,
+            persona_id=persona_id,
+            knowledge_base=request.knowledge_base,
+            language=request.language,
+            accent=request.accent
+        )
+        
+        print(f"✅ Updated custom persona {persona_id} for user {user_id}")
+        
+        return UpdatePersonaResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error in update_persona: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while updating persona"
+        )
