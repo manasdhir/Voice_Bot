@@ -28,6 +28,8 @@ export default function VoiceBot() {
   const [userSpeaking, setUserSpeaking] = useState(false);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const backendurl =
+    import.meta.env.VITE_BACKEND_URL_WEBSOCKET || "http://localhost:8000";
 
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
@@ -43,7 +45,7 @@ export default function VoiceBot() {
 
   const connectWebSocket = () => {
     setConnecting(true);
-    const ws = new WebSocket("ws://localhost:8000/ws/stream");
+    const ws = new WebSocket(`${backendurl}/ws/stream`);
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
@@ -62,7 +64,7 @@ export default function VoiceBot() {
           user_name: user.name,
           user_email: user.email,
           timestamp: new Date().toISOString(),
-        }
+        };
 
         ws.send(JSON.stringify(userInfo));
         console.log("👤 User info sent:", userInfo);
@@ -156,11 +158,11 @@ export default function VoiceBot() {
 
       const vad = await MicVAD.new({
         source: stream,
-        noiseCaptureDuration: 1000,        // Learn background for 1 second
-  
-  // SPEECH DETECTION THRESHOLDS  
-  positiveSpeechThreshold: 0.8,      // Higher = less sensitive to noise
-  negativeSpeechThreshold: 0.35,
+        noiseCaptureDuration: 1000, // Learn background for 1 second
+
+        // SPEECH DETECTION THRESHOLDS
+        positiveSpeechThreshold: 0.8, // Higher = less sensitive to noise
+        negativeSpeechThreshold: 0.35,
         onSpeechStart: () => {
           console.log("🟢 Speech started");
           setUserSpeaking(true);
