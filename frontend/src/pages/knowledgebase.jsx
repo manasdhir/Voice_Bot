@@ -1,53 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../context/authContext";
-
-const dummyKnowledgeBases = [
-  {
-    id: "general",
-    name: "General Knowledge",
-    description: "General purpose knowledge base",
-    docCount: 15,
-    created: "2024-01-15",
-    articles: [
-      {
-        id: 1,
-        title: "How to use the Voice Bot?",
-        summary:
-          "A quick start guide to using the Voice Bot for your daily tasks.",
-        type: "manual",
-      },
-      {
-        id: 2,
-        title: "Troubleshooting common issues",
-        summary: "Solutions to the most common problems users face.",
-        type: "manual",
-      },
-    ],
-  },
-  {
-    id: "technical",
-    name: "Technical Documentation",
-    description: "Technical guides and documentation",
-    docCount: 8,
-    created: "2024-01-20",
-    articles: [
-      {
-        id: 3,
-        title: "API Documentation",
-        summary: "Complete API reference guide",
-        type: "manual",
-      },
-    ],
-  },
-  {
-    id: "personal",
-    name: "Personal Notes",
-    description: "Personal documents and notes",
-    docCount: 23,
-    created: "2024-02-01",
-    articles: [],
-  },
-];
 
 const fileTypeIcon = (type) => {
   if (type.includes("pdf")) return "📄";
@@ -81,29 +33,47 @@ const SignInPrompt = () => {
 };
 
 const CreateKnowledgeBaseModal = ({ isOpen, onClose, onCreate }) => {
-  const [form, setForm] = useState({ name: "", description: "" });
+  const { session } = useAuth();
+  const token = session?.access_token;
 
-  const handleSubmit = (e) => {
+  const [form, setForm] = useState({ name: "", description: "" });
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
 
-    onCreate({
-      id: Date.now().toString(),
-      name: form.name,
-      description: form.description,
-      docCount: 0,
-      created: new Date().toISOString().split("T")[0],
-      articles: [],
-    });
+    setIsCreating(true);
+    setError("");
 
-    setForm({ name: "", description: "" });
-    onClose();
+    try {
+      // TODO: Replace with actual API call to create knowledge base
+      // For now, just create locally until the create API is available
+      onCreate({
+        id: Date.now().toString(),
+        name: form.name,
+        description: form.description,
+        docCount: 0,
+        created: new Date().toISOString().split("T")[0],
+        articles: [],
+      });
+
+      setForm({ name: "", description: "" });
+      onClose();
+    } catch (error) {
+      console.error("Error creating knowledge base:", error);
+      setError(error.message);
+      setTimeout(() => setError(""), 5000);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-neutral-200 dark:border-white/20 max-w-md w-full">
         <h3 className="text-2xl font-bold text-black dark:text-white mb-6">
           Create Knowledge Base
@@ -121,6 +91,7 @@ const CreateKnowledgeBaseModal = ({ isOpen, onClose, onCreate }) => {
               className="w-full px-3 py-2 rounded-lg bg-white/20 dark:bg-white/20 text-black dark:text-white border border-neutral-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-neutral-500 dark:placeholder:text-neutral-300"
               placeholder="Enter knowledge base name"
               required
+              disabled={isCreating}
             />
           </div>
 
@@ -136,19 +107,32 @@ const CreateKnowledgeBaseModal = ({ isOpen, onClose, onCreate }) => {
               className="w-full px-3 py-2 rounded-lg bg-white/20 dark:bg-white/20 text-black dark:text-white border border-neutral-200 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-neutral-500 dark:placeholder:text-neutral-300"
               placeholder="Enter description (optional)"
               rows={3}
+              disabled={isCreating}
             />
           </div>
+
+          {error && (
+            <div className="bg-red-500/20 text-red-600 dark:text-red-300 border border-red-500/30 rounded-lg p-3 text-center text-sm">
+              {error}
+            </div>
+          )}
 
           <div className="flex gap-3 mt-6">
             <button
               type="submit"
-              className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors font-medium"
+              disabled={isCreating}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                isCreating
+                  ? "bg-neutral-400 cursor-not-allowed"
+                  : "bg-orange-500 text-white hover:bg-orange-600"
+              }`}
             >
-              Create
+              {isCreating ? "Creating..." : "Create"}
             </button>
             <button
               type="button"
               onClick={onClose}
+              disabled={isCreating}
               className="flex-1 px-4 py-2 rounded-lg bg-neutral-500 text-white hover:bg-neutral-600 transition-colors font-medium"
             >
               Cancel
@@ -160,7 +144,45 @@ const CreateKnowledgeBaseModal = ({ isOpen, onClose, onCreate }) => {
   );
 };
 
-const KnowledgeBaseList = ({ knowledgeBases, onSelect, onCreateNew }) => {
+const KnowledgeBaseList = ({
+  knowledgeBases,
+  onSelect,
+  onCreateNew,
+  loading,
+  error,
+  onRetry,
+}) => {
+  if (loading) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center py-12">
+        <div className="text-4xl mb-4">⏳</div>
+        <div className="text-xl text-neutral-600 dark:text-neutral-300">
+          Loading knowledge bases...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center py-12">
+        <div className="text-4xl mb-4">⚠️</div>
+        <div className="text-xl text-red-500 mb-2">
+          Error Loading Knowledge Bases
+        </div>
+        <div className="text-neutral-600 dark:text-neutral-300 text-center mb-4">
+          {error}
+        </div>
+        <button
+          onClick={onRetry}
+          className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       <div className="flex justify-between items-center mb-6">
@@ -253,31 +275,56 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
   const filteredArticles = articles.filter(
     (a) =>
       a.title.toLowerCase().includes(search.toLowerCase()) ||
-      a.summary.toLowerCase().includes(search.toLowerCase()),
+      a.summary.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Updated uploadFileToServer function with proper API integration
   const uploadFileToServer = async (file) => {
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/upload_doc", {
+      console.log(
+        `📤 Uploading file: ${file.name} to knowledge base: ${knowledgeBase.name}`
+      );
+
+      // Use the knowledge base name as kg_name parameter
+      const endpoint = `${
+        import.meta.env.VITE_BACKEND_URL
+      }/upload_doc?kg_name=${encodeURIComponent(knowledgeBase.name)}`;
+
+      const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "ngrok-skip-browser-warning": "true",
         },
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        return { success: true, data: result };
-      } else {
-        throw new Error(`Upload failed: ${response.statusText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Upload failed:", errorText);
+        throw new Error(
+          `Upload failed: ${response.status} ${response.statusText}`
+        );
       }
+
+      const result = await response.json();
+      console.log("✅ Upload successful:", result);
+
+      return {
+        success: true,
+        data: result,
+        message: result.message || "File uploaded successfully",
+      };
     } catch (error) {
-      console.error("Upload error:", error);
-      return { success: false, error: error.message };
+      console.error("❌ Upload error:", error);
+      return {
+        success: false,
+        error: error.message,
+        message: `Upload failed: ${error.message}`,
+      };
     }
   };
 
@@ -309,69 +356,153 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
     setDragActive(false);
     const files = Array.from(e.dataTransfer.files);
 
+    if (files.length === 0) return;
+
     setUploading(true);
-    setUploadStatus("Uploading files...");
+    setUploadStatus(`Uploading ${files.length} file(s)...`);
+
+    let successCount = 0;
+    let failCount = 0;
 
     for (const file of files) {
       try {
+        console.log(`🔄 Processing file: ${file.name} (${file.size} bytes)`);
         const result = await uploadFileToServer(file);
 
         const newArticle = {
           id: Date.now() + Math.random(),
           title: file.name,
-          summary: `${file.size} bytes - ${result.success ? "Uploaded successfully" : `Upload failed: ${result.error}`}`,
+          summary: result.success
+            ? `${(file.size / 1024).toFixed(1)} KB - ${result.message}`
+            : `${(file.size / 1024).toFixed(1)} KB - ${result.message}`,
           type: file.type || "file",
           uploaded: result.success,
+          uploadData: result.data || null,
         };
 
         setArticles((prev) => [...prev, newArticle]);
 
         if (result.success) {
-          setUploadStatus(`${file.name} uploaded successfully!`);
+          successCount++;
+          console.log(`✅ ${file.name} uploaded successfully`);
         } else {
-          setUploadStatus(`Failed to upload ${file.name}: ${result.error}`);
+          failCount++;
+          console.error(`❌ ${file.name} upload failed:`, result.error);
         }
       } catch (error) {
-        setUploadStatus(`Error uploading ${file.name}: ${error.message}`);
+        failCount++;
+        console.error(`❌ Error processing ${file.name}:`, error);
+
+        const errorArticle = {
+          id: Date.now() + Math.random(),
+          title: file.name,
+          summary: `${(file.size / 1024).toFixed(1)} KB - Error: ${
+            error.message
+          }`,
+          type: file.type || "file",
+          uploaded: false,
+        };
+
+        setArticles((prev) => [...prev, errorArticle]);
       }
     }
 
+    // Update knowledge base doc count
+    onUpdateKB({
+      ...knowledgeBase,
+      articles: articles,
+      docCount: knowledgeBase.docCount + successCount,
+    });
+
+    // Set final status
+    if (successCount > 0 && failCount === 0) {
+      setUploadStatus(`✅ All ${successCount} file(s) uploaded successfully!`);
+    } else if (successCount > 0 && failCount > 0) {
+      setUploadStatus(
+        `⚠️ ${successCount} file(s) uploaded, ${failCount} failed`
+      );
+    } else {
+      setUploadStatus(`❌ All ${failCount} file(s) failed to upload`);
+    }
+
     setUploading(false);
-    setTimeout(() => setUploadStatus(""), 3000);
+    setTimeout(() => setUploadStatus(""), 5000);
   };
 
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
 
+    if (files.length === 0) return;
+
     setUploading(true);
-    setUploadStatus("Uploading files...");
+    setUploadStatus(`Uploading ${files.length} file(s)...`);
+
+    let successCount = 0;
+    let failCount = 0;
 
     for (const file of files) {
       try {
+        console.log(`🔄 Processing file: ${file.name} (${file.size} bytes)`);
         const result = await uploadFileToServer(file);
 
         const newArticle = {
           id: Date.now() + Math.random(),
           title: file.name,
-          summary: `${file.size} bytes - ${result.success ? "Uploaded successfully" : `Upload failed: ${result.error}`}`,
+          summary: result.success
+            ? `${(file.size / 1024).toFixed(1)} KB - ${result.message}`
+            : `${(file.size / 1024).toFixed(1)} KB - ${result.message}`,
           type: file.type || "file",
           uploaded: result.success,
+          uploadData: result.data || null,
         };
 
         setArticles((prev) => [...prev, newArticle]);
 
         if (result.success) {
-          setUploadStatus(`${file.name} uploaded successfully!`);
+          successCount++;
+          console.log(`✅ ${file.name} uploaded successfully`);
         } else {
-          setUploadStatus(`Failed to upload ${file.name}: ${result.error}`);
+          failCount++;
+          console.error(`❌ ${file.name} upload failed:`, result.error);
         }
       } catch (error) {
-        setUploadStatus(`Error uploading ${file.name}: ${error.message}`);
+        failCount++;
+        console.error(`❌ Error processing ${file.name}:`, error);
+
+        const errorArticle = {
+          id: Date.now() + Math.random(),
+          title: file.name,
+          summary: `${(file.size / 1024).toFixed(1)} KB - Error: ${
+            error.message
+          }`,
+          type: file.type || "file",
+          uploaded: false,
+        };
+
+        setArticles((prev) => [...prev, errorArticle]);
       }
     }
 
+    // Update knowledge base doc count
+    onUpdateKB({
+      ...knowledgeBase,
+      articles: articles,
+      docCount: knowledgeBase.docCount + successCount,
+    });
+
+    // Set final status
+    if (successCount > 0 && failCount === 0) {
+      setUploadStatus(`✅ All ${successCount} file(s) uploaded successfully!`);
+    } else if (successCount > 0 && failCount > 0) {
+      setUploadStatus(
+        `⚠️ ${successCount} file(s) uploaded, ${failCount} failed`
+      );
+    } else {
+      setUploadStatus(`❌ All ${failCount} file(s) failed to upload`);
+    }
+
     setUploading(false);
-    setTimeout(() => setUploadStatus(""), 3000);
+    setTimeout(() => setUploadStatus(""), 5000);
 
     // Reset the input
     e.target.value = "";
@@ -449,6 +580,7 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
                 className="hidden"
                 onChange={handleFileChange}
                 disabled={uploading}
+                accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt,.png,.jpg,.jpeg,.gif,.bmp,.svg,.webp,.xls,.xlsx,.csv,.ppt,.pptx"
               />
               <span className="text-5xl mb-2">{uploading ? "⏳" : "⬆️"}</span>
               <span className="font-semibold text-lg text-neutral-700 dark:text-neutral-200">
@@ -457,18 +589,24 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
                   : "Drag & Drop files here or click to upload"}
               </span>
               <span className="text-xs text-neutral-500 dark:text-neutral-300 mt-1">
-                Supported: PDF, DOCX, Images, Text, etc.
+                Supported: PDF, DOCX, Images, Text, Spreadsheets, etc.
+              </span>
+              <span className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
+                Knowledge Base: {knowledgeBase.name}
               </span>
             </div>
             {uploadStatus && (
               <div
-                className={`mt-4 p-3 rounded-lg text-center ${
+                className={`mt-4 p-3 rounded-lg text-center text-sm ${
+                  uploadStatus.includes("✅") ||
                   uploadStatus.includes("successfully")
                     ? "bg-green-500/20 text-green-600 dark:text-green-300 border border-green-500/30"
-                    : uploadStatus.includes("failed") ||
-                        uploadStatus.includes("Error")
-                      ? "bg-red-500/20 text-red-600 dark:text-red-300 border border-red-500/30"
-                      : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30"
+                    : uploadStatus.includes("❌") ||
+                      uploadStatus.includes("failed")
+                    ? "bg-red-500/20 text-red-600 dark:text-red-300 border border-red-500/30"
+                    : uploadStatus.includes("⚠️")
+                    ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-300 border border-yellow-500/30"
+                    : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30"
                 }`}
               >
                 {uploadStatus}
@@ -555,10 +693,75 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
 };
 
 const KnowledgeBase = () => {
-  const { user, isSignedIn, loading } = useAuth();
-  const [knowledgeBases, setKnowledgeBases] = useState(dummyKnowledgeBases);
+  const { user, isSignedIn, loading, session } = useAuth();
+  const token = session?.access_token;
+
+  const [knowledgeBases, setKnowledgeBases] = useState([]);
   const [selectedKB, setSelectedKB] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loadingKBs, setLoadingKBs] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch knowledge bases from API
+  const fetchKnowledgeBases = async () => {
+    if (!isSignedIn || !token) return;
+
+    try {
+      setLoadingKBs(true);
+      setError(null);
+
+      console.log("🔍 Fetching knowledge bases...");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/knowledge_bases`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ API Error:", errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("✅ Knowledge bases response:", data);
+
+      // Transform API response to match UI expectations
+      const transformedKBs = data.knowledge_bases.map((name, index) => ({
+        id: `kb_${index}_${Date.now()}`, // Generate unique ID
+        name: name,
+        description: "", // API doesn't provide description
+        docCount: 0, // API doesn't provide doc count
+        created: new Date().toISOString().split("T")[0], // Use current date
+        articles: [], // Initialize empty articles array
+      }));
+
+      setKnowledgeBases(transformedKBs);
+      console.log(
+        `✅ Loaded ${data.total_count} knowledge bases for user ${data.user_id}`
+      );
+    } catch (error) {
+      console.error("❌ Error fetching knowledge bases:", error);
+      setError(error.message);
+    } finally {
+      setLoadingKBs(false);
+    }
+  };
+
+  // Load knowledge bases on mount and when auth state changes
+  useEffect(() => {
+    if (isSignedIn && token) {
+      fetchKnowledgeBases();
+    } else {
+      setKnowledgeBases([]);
+      setLoadingKBs(false);
+    }
+  }, [isSignedIn, token]);
 
   // Show loading state
   if (loading) {
@@ -585,8 +788,12 @@ const KnowledgeBase = () => {
 
   const handleUpdateKB = (updatedKB) => {
     setKnowledgeBases((prev) =>
-      prev.map((kb) => (kb.id === updatedKB.id ? updatedKB : kb)),
+      prev.map((kb) => (kb.id === updatedKB.id ? updatedKB : kb))
     );
+  };
+
+  const handleRetry = () => {
+    fetchKnowledgeBases();
   };
 
   return (
@@ -612,6 +819,9 @@ const KnowledgeBase = () => {
           knowledgeBases={knowledgeBases}
           onSelect={setSelectedKB}
           onCreateNew={() => setShowCreateModal(true)}
+          loading={loadingKBs}
+          error={error}
+          onRetry={handleRetry}
         />
       )}
 

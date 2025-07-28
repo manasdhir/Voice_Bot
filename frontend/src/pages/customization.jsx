@@ -24,10 +24,7 @@ const languageOptions = [
   {
     code: "fr",
     name: "French",
-    accents: [
-      { code: "fr-FR", name: "France" },
-      { code: "fr-CA", name: "Canada" },
-    ],
+    accents: [{ code: "fr-FR", name: "France" }],
   },
   {
     code: "de",
@@ -42,20 +39,7 @@ const languageOptions = [
   {
     code: "pt",
     name: "Portuguese",
-    accents: [
-      { code: "pt-BR", name: "Brazil" },
-      { code: "pt-PT", name: "Portugal" },
-    ],
-  },
-  {
-    code: "ru",
-    name: "Russian",
-    accents: [{ code: "ru-RU", name: "Standard" }],
-  },
-  {
-    code: "ar",
-    name: "Arabic",
-    accents: [{ code: "ar-SA", name: "Standard" }],
+    accents: [{ code: "pt-BR", name: "Brazil" }],
   },
   {
     code: "hi",
@@ -65,10 +49,7 @@ const languageOptions = [
   {
     code: "zh",
     name: "Chinese",
-    accents: [
-      { code: "zh-CN", name: "Mandarin" },
-      { code: "zh-HK", name: "Cantonese" },
-    ],
+    accents: [{ code: "zh-CN", name: "Mandarin" }],
   },
   {
     code: "ja",
@@ -84,21 +65,6 @@ const languageOptions = [
     code: "nl",
     name: "Dutch",
     accents: [{ code: "nl-NL", name: "Standard" }],
-  },
-  {
-    code: "da",
-    name: "Danish",
-    accents: [{ code: "da-DK", name: "Standard" }],
-  },
-  {
-    code: "fi",
-    name: "Finnish",
-    accents: [{ code: "fi-FI", name: "Standard" }],
-  },
-  {
-    code: "no",
-    name: "Norwegian",
-    accents: [{ code: "no-NO", name: "Standard" }],
   },
   {
     code: "ro",
@@ -130,13 +96,6 @@ const languageOptions = [
     name: "Tamil",
     accents: [{ code: "ta-IN", name: "Standard" }],
   },
-];
-
-const dummyKnowledgeBases = [
-  { id: "general", name: "General Knowledge", docCount: 15 },
-  { id: "technical", name: "Technical Documentation", docCount: 8 },
-  { id: "personal", name: "Personal Notes", docCount: 23 },
-  { id: "business", name: "Business Resources", docCount: 12 },
 ];
 
 const SignInPrompt = () => {
@@ -242,7 +201,7 @@ const CreatePersonaModal = ({ isOpen, onClose, onCreate }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-neutral-200 dark:border-white/20 max-w-lg w-full">
         <h3 className="text-2xl font-bold text-black dark:text-white mb-6">
           Create New Persona
@@ -355,6 +314,7 @@ const PersonaList = ({
   onDeactivatePersona,
   toggleLoading,
   deactivateLoading,
+  knowledgeBases,
 }) => {
   const activePersona = personas.find((p) => p.isActive);
 
@@ -477,9 +437,9 @@ const PersonaList = ({
                     ? persona.is_default
                       ? "Preset"
                       : "None"
-                    : dummyKnowledgeBases.find(
+                    : knowledgeBases.find(
                         (kb) => kb.id === persona.knowledge_base
-                      )?.name || "General"}
+                      )?.name || persona.knowledge_base}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -567,7 +527,13 @@ const PersonaList = ({
   );
 };
 
-const PersonaDetail = ({ persona, onBack, onUpdatePersona }) => {
+const PersonaDetail = ({
+  persona,
+  onBack,
+  onUpdatePersona,
+  knowledgeBases,
+  loadingKBs,
+}) => {
   const { session } = useAuth();
   const token = session?.access_token;
 
@@ -926,31 +892,71 @@ const PersonaDetail = ({ persona, onBack, onUpdatePersona }) => {
             Knowledge Base
           </h2>
 
-          <div className="space-y-3">
-            {dummyKnowledgeBases.map((kb) => (
+          {loadingKBs ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-neutral-500 dark:text-neutral-400">
+                Loading knowledge bases...
+              </div>
+            </div>
+          ) : knowledgeBases.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-neutral-500 dark:text-neutral-400 mb-2">
+                No knowledge bases available
+              </div>
+              <div className="text-xs text-neutral-400 dark:text-neutral-500">
+                Create knowledge bases in the Knowledge Base section
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* None option */}
               <button
-                key={kb.id}
-                onClick={() => setSelectedKnowledgeBase(kb.id)}
+                onClick={() => setSelectedKnowledgeBase("none")}
                 className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
-                  selectedKnowledgeBase === kb.id
+                  selectedKnowledgeBase === "none"
                     ? "border-orange-400 bg-orange-50/10 dark:bg-orange-900/10"
                     : "border-neutral-200 dark:border-white/20 hover:bg-white/10 dark:hover:bg-white/10"
                 }`}
               >
                 <div className="text-left">
                   <div className="font-medium text-black dark:text-white">
-                    {kb.name}
+                    None
                   </div>
                   <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                    {kb.docCount} documents
+                    No specific knowledge base
                   </div>
                 </div>
-                {selectedKnowledgeBase === kb.id && (
+                {selectedKnowledgeBase === "none" && (
                   <span className="text-orange-400">✓</span>
                 )}
               </button>
-            ))}
-          </div>
+
+              {/* Knowledge base options */}
+              {knowledgeBases.map((kb) => (
+                <button
+                  key={kb.id}
+                  onClick={() => setSelectedKnowledgeBase(kb.id)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                    selectedKnowledgeBase === kb.id
+                      ? "border-orange-400 bg-orange-50/10 dark:bg-orange-900/10"
+                      : "border-neutral-200 dark:border-white/20 hover:bg-white/10 dark:hover:bg-white/10"
+                  }`}
+                >
+                  <div className="text-left">
+                    <div className="font-medium text-black dark:text-white">
+                      {kb.name}
+                    </div>
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                      Knowledge base
+                    </div>
+                  </div>
+                  {selectedKnowledgeBase === kb.id && (
+                    <span className="text-orange-400">✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Voice Settings */}
@@ -1100,7 +1106,62 @@ const ChatbotCustomization = () => {
   const [toggleLoading, setToggleLoading] = useState(null);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
 
-  // Load all personas on mount
+  // Knowledge Bases state
+  const [knowledgeBases, setKnowledgeBases] = useState([]);
+  const [loadingKBs, setLoadingKBs] = useState(true);
+  const [kbError, setKbError] = useState(null);
+
+  // Fetch knowledge bases from API
+  const fetchKnowledgeBases = async () => {
+    if (!isSignedIn || !token) return;
+
+    try {
+      setLoadingKBs(true);
+      setKbError(null);
+
+      console.log("🔍 Fetching knowledge bases for persona customization...");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/knowledge_bases`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ KB API Error:", errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("✅ Knowledge bases response:", data);
+
+      // Transform API response to match UI expectations
+      const transformedKBs = data.knowledge_bases.map((name, index) => ({
+        id: name, // Use the name as ID since API only returns names
+        name: name,
+        description: "", // API doesn't provide description
+        docCount: 0, // API doesn't provide doc count
+      }));
+
+      setKnowledgeBases(transformedKBs);
+      console.log(
+        `✅ Loaded ${data.total_count} knowledge bases for persona selection`
+      );
+    } catch (error) {
+      console.error("❌ Error fetching knowledge bases:", error);
+      setKbError(error.message);
+      setKnowledgeBases([]); // Set empty array on error
+    } finally {
+      setLoadingKBs(false);
+    }
+  };
+
+  // Load all data on mount
   useEffect(() => {
     const fetchData = async () => {
       if (!isSignedIn || !token) return;
@@ -1143,8 +1204,14 @@ const ChatbotCustomization = () => {
       }
     };
 
-    if (isSignedIn) {
+    if (isSignedIn && token) {
       fetchData();
+      fetchKnowledgeBases(); // Fetch knowledge bases as well
+    } else {
+      setPersonas([]);
+      setKnowledgeBases([]);
+      setLoadingPersonas(false);
+      setLoadingKBs(false);
     }
   }, [isSignedIn, token]);
 
@@ -1346,6 +1413,8 @@ const ChatbotCustomization = () => {
           persona={selectedPersona}
           onBack={() => setSelectedPersona(null)}
           onUpdatePersona={handleUpdatePersona}
+          knowledgeBases={knowledgeBases}
+          loadingKBs={loadingKBs}
         />
       ) : (
         <PersonaList
@@ -1356,6 +1425,7 @@ const ChatbotCustomization = () => {
           onDeactivatePersona={handleDeactivatePersona}
           toggleLoading={toggleLoading}
           deactivateLoading={deactivateLoading}
+          knowledgeBases={knowledgeBases}
         />
       )}
 
