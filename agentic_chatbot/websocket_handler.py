@@ -16,7 +16,7 @@ async def handle_websocket_connection(websocket: WebSocket):
 
     initial_data = await websocket.receive_json()
     messages = []
-    rt_var = None  # Initialize rt_var outside the if block
+    rt_var = None  
     flag= 'user_id' in initial_data
     if flag:
         thread_id = initial_data.get('user_id')
