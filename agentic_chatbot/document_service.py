@@ -10,7 +10,7 @@ def read_pdf(file: UploadFile) -> str:
         text = "\n".join(page.extract_text() or "" for page in pdf.pages)
     return text
 
-async def process_document_upload(file: UploadFile, userid: str):
+async def process_document_upload(file: UploadFile, userid: str, knowledge_base: str):
     try:
         filename = file.filename
         if not filename.lower().endswith(".pdf"):
@@ -24,16 +24,33 @@ async def process_document_upload(file: UploadFile, userid: str):
         splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
         chunks = splitter.split_text(text)
 
-        # Batch create Document objects with metadata
+        # Create knowledge base identifier by concatenating userid and knowledge_base
+        kb_identifier = f"{userid}_{knowledge_base}"
+
+        # Batch create Document objects with metadata including knowledge base
         docs = [
-            Document(page_content=chunk, metadata={"source": filename, "userid": userid})
+            Document(
+                page_content=chunk, 
+                metadata={
+                    "source": filename, 
+                    "userid": userid,
+                    "knowledge_base": knowledge_base,
+                    "kb_identifier": kb_identifier  # Combined identifier for filtering
+                }
+            )
             for chunk in chunks
         ]
 
         # ✅ Batch embed & insert
         vectorstore.add_documents(docs)
 
-        return {"status": "uploaded", "chunks": len(docs), "file": filename}
+        return {
+            "status": "uploaded", 
+            "chunks": len(docs), 
+            "file": filename,
+            "knowledge_base": knowledge_base
+        }
 
     except Exception as e:
         return {"error": str(e)}
+

@@ -1,12 +1,14 @@
-from fastapi import FastAPI, WebSocket, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, WebSocket, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from config import ALLOWED_ORIGINS
 from websocket_handler import handle_websocket_connection
 from document_service import process_document_upload
 from auth import get_current_user
-
+from typing import List
+from pydantic import BaseModel
 from custom_endpoints import router as persona_router
+from rag_service import get_user_knowledge_bases
 
 # ---------------- LOGGING CONFIG ----------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -32,8 +34,8 @@ async def ws_pipeline(websocket: WebSocket):
     await handle_websocket_connection(websocket)
 
 @app.post("/upload_doc")
-async def upload_doc(file: UploadFile = File(...), user=Depends(get_current_user)):
-    return await process_document_upload(file, userid=user['sub'])
+async def upload_doc(kg_name: str, file: UploadFile = File(...), user=Depends(get_current_user)):
+    return await process_document_upload(file, userid=user['sub'], knowledge_base=kg_name)
 
 from map import MURF_VOICE_MAPPING
 from audio_services import murf_tts
@@ -56,3 +58,29 @@ async def test_voice(text: str,lang_code:str, user=Depends(get_current_user)):
             }
         )
 
+class KnowledgeBasesResponse(BaseModel):
+    knowledge_bases: List[str]
+    total_count: int
+    user_id: str
+
+@app.get("/knowledge_bases", response_model=KnowledgeBasesResponse)
+async def get_knowledge_bases(user=Depends(get_current_user)):
+    """Get all knowledge base names belonging to the authenticated user"""
+    try:
+        user_id = user['sub']
+        knowledge_bases = await get_user_knowledge_bases(user_id)
+        
+        logger.info(f"Retrieved {len(knowledge_bases)} knowledge bases for user {user_id}")
+        
+        return KnowledgeBasesResponse(
+            knowledge_bases=knowledge_bases,
+            total_count=len(knowledge_bases),
+            user_id=user_id
+        )
+        
+    except Exception as e:
+        logger.error(f"Error fetching knowledge bases for user: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve knowledge bases"
+        )

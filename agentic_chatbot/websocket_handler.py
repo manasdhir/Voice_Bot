@@ -14,19 +14,13 @@ async def handle_websocket_connection(websocket: WebSocket):
 
     import uuid
 
-    try:
-        initial_data = await websocket.receive_json()
-        if 'user_id' in initial_data:
-            thread_id = initial_data.get('user_id')
-            graph=create_graph()
-        else:
-            graph=create_basic_graph()
-            thread_id=str(uuid.uuid4())
-    except Exception:
-        # No initial data received or timeout, generate unique thread ID
+    initial_data = await websocket.receive_json()
+    if 'user_id' in initial_data:
+        thread_id = initial_data.get('user_id')
+        graph=create_graph()
+    else:
         graph=create_basic_graph()
-        thread_id = str(uuid.uuid4())
-
+        thread_id=str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
 
     
@@ -37,7 +31,6 @@ async def handle_websocket_connection(websocket: WebSocket):
                 logger.info("📞 Call ended by client")
                 await websocket.close()
                 break
-            print(data)
             lang = data.get("lang", "english").lower()
             audio_bytes = await websocket.receive_bytes()
 
@@ -50,6 +43,7 @@ async def handle_websocket_connection(websocket: WebSocket):
                     {"messages": [HumanMessage(content=transcription)]},
                     config=config
                 )
+            print(result)
             llm_response = result["messages"][-1].content
             await websocket.send_json({"type": "llm_response", "text": llm_response})
 

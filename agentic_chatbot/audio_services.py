@@ -31,7 +31,7 @@ async def groq_asr_bytes(audio_bytes: bytes, model: str = ASR_MODEL, language: s
 
 murf_client = AsyncMurf(api_key=MURF_API_KEY)
 
-async def murf_tts(text: str, voice_id: str = "en-US-natalie", format: str = "MP3") -> bytes:
+async def murf_tts(text: str, voice_id: str = "en-IN-isha", format: str = "MP3") -> bytes:
     resp = murf_client.text_to_speech.stream(
         text=text,
         voice_id=voice_id,

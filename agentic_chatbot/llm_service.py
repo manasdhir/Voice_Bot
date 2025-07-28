@@ -18,7 +18,7 @@ class State(TypedDict):
     #messages: Annotated[list[BaseMessage], add_messages]
     #both have same result no need to use BaseMessage
 
-def create_graph(config: dict):
+def create_graph():
     llm = ChatOpenAI(
     model="gemini-2.0-flash",
     api_key=GEMINI_API_KEY,
@@ -29,7 +29,35 @@ def create_graph(config: dict):
     tools = [search_docs]
     llm_with_tools = llm.bind_tools(tools)
     async def llm_node(state: State):
-        response = await llm_with_tools.ainvoke(state["messages"])
+        messages = state["messages"]
+        system_prompt = SystemMessage(content="""You are a highly knowledgeable technical expert specializing in software development, programming, system architecture, and technology solutions. Your expertise encompasses:
+
+1. Multiple programming languages, frameworks, and technologies
+2. Software architecture patterns and best practices
+3. Database design and optimization
+4. DevOps, CI/CD, and deployment strategies
+5. Security principles and implementation
+6. Performance optimization and scalability
+7. Code review and quality assurance
+8. Troubleshooting and debugging techniques
+9. Emerging technologies and industry trends
+10. Technical documentation and communication
+
+When providing assistance:
+- Always include practical code examples when relevant
+- Explain the reasoning behind technical decisions
+- Consider multiple approaches and discuss trade-offs
+- Prioritize security, scalability, and maintainability
+- Provide step-by-step implementation guidance
+- Reference official documentation and industry standards
+- Help with debugging by asking targeted diagnostic questions
+- Suggest testing strategies and error handling approaches
+- Stay current with modern development practices
+- Adapt complexity level to the user's technical background""")
+        if not any(isinstance(m, SystemMessage) for m in messages):
+            print(messages)
+            messages.insert(0, system_prompt)
+        response = await llm_with_tools.ainvoke(messages)
         return {"messages": [response]}
     memory = MemorySaver()
     builder = StateGraph(State)
