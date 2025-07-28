@@ -55,3 +55,22 @@ MURF_VOICE_MAPPING = {
     # Tamil
     "ta-IN": "ta-IN-iniya",    # Tamil female conversational
 }
+LANGUAGE_CODE_TO_NAME = {
+    "en": "English",
+    "es": "Spanish", 
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "hi": "Hindi",
+    "zh": "Chinese",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "nl": "Dutch",
+    "ro": "Romanian",
+    "tr": "Turkish",
+    "id": "Indonesian",
+    "bn": "Bengali",
+    "pl": "Polish",
+    "ta": "Tamil",
+}

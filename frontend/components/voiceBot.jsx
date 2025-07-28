@@ -28,6 +28,7 @@ export default function VoiceBot() {
   const [userSpeaking, setUserSpeaking] = useState(false);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [backendReady, setBackendReady] = useState(false);
   const backendurl =
     import.meta.env.VITE_BACKEND_URL_WEBSOCKET || "http://localhost:8000";
 
@@ -50,12 +51,8 @@ export default function VoiceBot() {
 
     ws.onopen = () => {
       console.log("🔌 WebSocket connected.");
-      setConnected(true);
-      setConnecting(false);
-
-      // Only start mic after successful WebSocket connection
-      setMicOn(true);
-
+      // Don't set connected yet, wait for backend confirmation
+      
       // Send user ID only if user is logged in
       if (isSignedIn && user?.id) {
         const userInfo = {
@@ -77,7 +74,13 @@ export default function VoiceBot() {
     ws.onmessage = async (event) => {
       if (typeof event.data === "string") {
         const msg = JSON.parse(event.data);
-        if (msg.type === "transcription") {
+        if (msg.type === "connection_successful") {
+          console.log("✅ Backend ready, starting VAD...");
+          setBackendReady(true);
+          // Start mic which will trigger VAD
+          setMicOn(true);
+          // Expect greeting audio to follow
+        } else if (msg.type === "transcription") {
           console.log("📝 Transcription:", msg.text);
         } else if (msg.type === "llm_response") {
           console.log("🤖 Bot:", msg.text);
@@ -91,6 +94,7 @@ export default function VoiceBot() {
           console.error("❌ Server error:", msg.message);
         }
       } else {
+        // Handle audio data (TTS or greeting)
         if (botAudioRef.current) {
           botAudioRef.current.pause();
           botAudioRef.current = null;
@@ -125,6 +129,7 @@ export default function VoiceBot() {
       console.log("❌ WebSocket disconnected.");
       setConnected(false);
       setConnecting(false);
+      setBackendReady(false);
       setMicOn(false); // Stop mic when WebSocket closes
     };
 
@@ -132,6 +137,7 @@ export default function VoiceBot() {
       console.error("⚠️ WebSocket error:", err);
       setConnected(false);
       setConnecting(false);
+      setBackendReady(false);
       setMicOn(false); // Stop mic on WebSocket error
     };
 
@@ -186,6 +192,13 @@ export default function VoiceBot() {
 
       await vad.start();
       vadRef.current = vad;
+
+      // Set connected state after VAD is ready and noise capturing is done
+      setTimeout(() => {
+        console.log("🎤 VAD noise capturing complete, marking as connected");
+        setConnected(true);
+        setConnecting(false);
+      }, 1100); // Wait for noise capture duration + small buffer
 
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
@@ -275,6 +288,7 @@ export default function VoiceBot() {
   const handleDisconnect = () => {
     setConnected(false);
     setConnecting(false);
+    setBackendReady(false);
     setMicOn(false);
     setIsSpeaking(false);
     setUserSpeaking(false);
@@ -290,15 +304,15 @@ export default function VoiceBot() {
     }
   };
 
-  // Only handle mic state changes, no automatic WebSocket connection
+  // Only handle mic state changes when backend is ready
   useEffect(() => {
-    if (micOn) {
+    if (micOn && backendReady) {
       startMic();
-    } else {
+    } else if (!micOn) {
       stopMic();
     }
     return () => stopMic();
-  }, [micOn]);
+  }, [micOn, backendReady]);
 
   // Cleanup on component unmount
   useEffect(() => {

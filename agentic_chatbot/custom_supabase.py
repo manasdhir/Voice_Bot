@@ -365,3 +365,127 @@ async def update_persona_for_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}"
         )
+from map import MURF_VOICE_MAPPING
+async def get_user_runtime_variables(user_id: str) -> dict:
+    try:
+        supabase = await get_supabase()
+        
+        active_persona_info = await get_active_persona_for_user(user_id)
+        
+        if not active_persona_info["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Failed to get active persona"
+            )
+        
+        persona_id = active_persona_info["active_persona_id"]
+        persona_source = active_persona_info["persona_source"]
+        
+        # Initialize variables
+        system_prompt = ""
+        knowledge_base = ""
+        language = "en"  # Default language
+        accent = "en-IN"  # Default accent
+        
+        if persona_source == "default":
+            # ✅ Fetch custom_prompt, knowledge_base, language, and accent from default_personas table
+            persona_response = await supabase.table("default_personas").select("custom_prompt, knowledge_base, language, accent").eq("id", persona_id).execute()
+            if persona_response.data:
+                system_prompt = persona_response.data[0]["custom_prompt"]
+                knowledge_base = persona_response.data[0]["knowledge_base"] or ""
+                language = persona_response.data[0]["language"] or "en"
+                accent = persona_response.data[0]["accent"] or "en-IN"
+        elif persona_source == "user":
+            # ✅ Fetch custom_prompt, knowledge_base, language, and accent from user personas table
+            persona_response = await supabase.table("personas").select("custom_prompt, knowledge_base, language, accent").eq("id", persona_id).eq("user_id", user_id).execute()
+            if persona_response.data:
+                system_prompt = persona_response.data[0]["custom_prompt"]
+                knowledge_base = persona_response.data[0]["knowledge_base"] or ""
+                language = persona_response.data[0]["language"] or "en"
+                accent = persona_response.data[0]["accent"] or "en-IN"
+        
+        # Fetch previous session summary
+        session_summary = ""
+        summary_response = await supabase.table("user_persona_session_summary").select("session_summary").eq("user_id", user_id).eq("persona_id", persona_id).execute()
+        
+        if summary_response.data and summary_response.data[0]["session_summary"]:
+            session_summary = summary_response.data[0]["session_summary"]
+        
+        print(f"✅ Retrieved runtime variables for user {user_id}, persona {persona_id}")
+        accent=MURF_VOICE_MAPPING[accent]
+        return {
+            "success": True,
+            "user_id": user_id,
+            "active_persona_id": persona_id,
+            "persona_source": persona_source,
+            "system_prompt": system_prompt,
+            "session_summary": session_summary,
+            "knowledge_base": knowledge_base,
+            "language": language,  # ✅ Added language
+            "accent": accent,      # ✅ Added accent
+            "message": "Runtime variables retrieved successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error fetching runtime variables for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
+
+
+async def upsert_session_summary(
+    user_id: str,
+    persona_id: str,
+    persona_source: str,
+    session_summary: str
+) -> dict:
+    try:
+        supabase = await get_supabase()
+        
+        # Validate persona_source
+        if persona_source not in ["default", "user"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid persona source. Must be 'default' or 'user'"
+            )
+        
+        # Prepare upsert data
+        upsert_data = {
+            "user_id": user_id,
+            "persona_id": persona_id,
+            "persona_source": persona_source,
+            "session_summary": session_summary
+        }
+        
+        # Upsert the session summary (insert if new, update if exists)
+        response = await supabase.table("user_persona_session_summary").upsert(upsert_data).execute()
+        
+        if not response.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to store session summary"
+            )
+        
+        print(f"✅ Stored session summary for user {user_id}, persona {persona_id}")
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "persona_id": persona_id,
+            "persona_source": persona_source,
+            "session_summary": session_summary,
+            "message": "Session summary stored successfully"
+        }
+        
+    except HTTPException:
+        # Re-raise HTTPExceptions
+        raise
+    except Exception as e:
+        print(f"❌ Error storing session summary: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )

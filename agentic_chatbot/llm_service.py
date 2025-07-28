@@ -30,36 +30,8 @@ def create_graph():
     llm_with_tools = llm.bind_tools(tools)
     async def llm_node(state: State):
         messages = state["messages"]
-        system_prompt = SystemMessage(content="""You are a highly knowledgeable technical expert specializing in software development, programming, system architecture, and technology solutions. Your expertise encompasses:
-
-1. Multiple programming languages, frameworks, and technologies
-2. Software architecture patterns and best practices
-3. Database design and optimization
-4. DevOps, CI/CD, and deployment strategies
-5. Security principles and implementation
-6. Performance optimization and scalability
-7. Code review and quality assurance
-8. Troubleshooting and debugging techniques
-9. Emerging technologies and industry trends
-10. Technical documentation and communication
-
-When providing assistance:
-- Always include practical code examples when relevant
-- Explain the reasoning behind technical decisions
-- Consider multiple approaches and discuss trade-offs
-- Prioritize security, scalability, and maintainability
-- Provide step-by-step implementation guidance
-- Reference official documentation and industry standards
-- Help with debugging by asking targeted diagnostic questions
-- Suggest testing strategies and error handling approaches
-- Stay current with modern development practices
-- Adapt complexity level to the user's technical background""")
-        if not any(isinstance(m, SystemMessage) for m in messages):
-            print(messages)
-            messages.insert(0, system_prompt)
         response = await llm_with_tools.ainvoke(messages)
         return {"messages": [response]}
-    memory = MemorySaver()
     builder = StateGraph(State)
     builder.add_node("llm_with_tools", llm_node)
     tool_node = ToolNode(tools=tools)
@@ -68,7 +40,7 @@ When providing assistance:
     builder.add_edge("tools", "llm_with_tools")
     builder.add_edge(START, "llm_with_tools")
     builder.add_edge("llm_with_tools", END)
-    return builder.compile(checkpointer=memory)
+    return builder.compile()
   
 
 # Build basic graph (no tools, no memory)
@@ -96,7 +68,8 @@ def create_basic_graph():
     - Ask clarifying questions when needed to better assist the user
     - Acknowledge when you don't know something rather than guessing
 
-    Remember that users are interacting with you through voice, so structure your responses to be easily understood when heard rather than read.""")
+    Remember that users are interacting with you through voice, so structure your responses to be easily understood when heard rather than read.
+    Dont use abbreviations or numerical content in your responses.""")
         if not any(isinstance(m, SystemMessage) for m in messages):
             messages.insert(0, system_prompt)
         return {"messages": [llm.invoke(messages)]}

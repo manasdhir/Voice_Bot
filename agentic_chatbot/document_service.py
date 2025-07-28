@@ -42,7 +42,7 @@ async def process_document_upload(file: UploadFile, userid: str, knowledge_base:
         ]
 
         # ✅ Batch embed & insert
-        vectorstore.add_documents(docs)
+        await vectorstore.add_documents(docs)
 
         return {
             "status": "uploaded", 
