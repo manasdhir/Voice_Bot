@@ -29,6 +29,7 @@ export default function VoiceBot() {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [backendReady, setBackendReady] = useState(false);
+  const [speechEndTimeout, setSpeechEndTimeout] = useState(null);
   const backendurl =
     import.meta.env.VITE_BACKEND_URL_WEBSOCKET || "http://localhost:8000";
 
@@ -171,6 +172,7 @@ export default function VoiceBot() {
         negativeSpeechThreshold: 0.35,
         onSpeechStart: () => {
           console.log("🟢 Speech started");
+          if (speechEndTimeout) clearTimeout(speechEndTimeout);
           setUserSpeaking(true);
           chunksRef.current = [];
 
@@ -184,9 +186,14 @@ export default function VoiceBot() {
           mediaRecorderRef.current?.start();
         },
         onSpeechEnd: () => {
-          console.log("🔴 Speech ended");
-          setUserSpeaking(false);
-          mediaRecorderRef.current?.stop();
+          console.log("🔴 Speech end detected, waiting for pause timeout...");
+          if (speechEndTimeout) clearTimeout(speechEndTimeout);
+          setSpeechEndTimeout(
+            setTimeout(() => {
+              setUserSpeaking(false);
+              mediaRecorderRef.current?.stop();
+            }, 1000)
+          );
         },
       });
 
@@ -247,6 +254,8 @@ export default function VoiceBot() {
 
   const stopMic = async () => {
     cancelAnimationFrame(rafRef.current);
+
+    if (speechEndTimeout) clearTimeout(speechEndTimeout);
 
     if (vadRef.current) {
       await vadRef.current.pause();
