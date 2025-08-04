@@ -1,12 +1,15 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/authContext";
 
-const fileTypeIcon = (type) => {
-  if (type.includes("pdf")) return "📄";
-  if (type.includes("word") || type.includes("doc")) return "📝";
-  if (type.includes("image")) return "🖼️";
-  if (type.includes("text")) return "📃";
-  if (type.includes("spreadsheet") || type.includes("excel")) return "📊";
+const fileTypeIcon = (filename) => {
+  const ext = filename.toLowerCase().split(".").pop();
+  if (ext === "pdf") return "📄";
+  if (["doc", "docx", "rtf", "odt"].includes(ext)) return "📝";
+  if (["png", "jpg", "jpeg", "gif", "bmp", "svg", "webp"].includes(ext))
+    return "🖼️";
+  if (["txt", "md"].includes(ext)) return "📃";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "📊";
+  if (["ppt", "pptx"].includes(ext)) return "📊";
   return "📁";
 };
 
@@ -34,7 +37,6 @@ const SignInPrompt = () => {
 
 const CreateKnowledgeBaseModal = ({ isOpen, onClose, onCreate }) => {
   const { session } = useAuth();
-  const token = session?.access_token;
 
   const [form, setForm] = useState({ name: "", description: "" });
   const [isCreating, setIsCreating] = useState(false);
@@ -259,24 +261,97 @@ const KnowledgeBaseList = ({
   );
 };
 
-const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
+const KnowledgeBaseDetail = ({ knowledgeBase, onBack }) => {
   const { session } = useAuth();
   const token = session?.access_token;
 
   const [search, setSearch] = useState("");
-  const [articles, setArticles] = useState(knowledgeBase.articles || []);
+  const [documents, setDocuments] = useState([]);
   const [form, setForm] = useState({ title: "", summary: "" });
   const [mode, setMode] = useState("upload");
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(null);
   const inputRef = useRef();
 
-  const filteredArticles = articles.filter(
-    (a) =>
-      a.title.toLowerCase().includes(search.toLowerCase()) ||
-      a.summary.toLowerCase().includes(search.toLowerCase())
+  const filteredDocuments = documents.filter((doc) =>
+    doc.filename.toLowerCase().includes(search.toLowerCase()),
   );
+
+  // Fetch documents for this knowledge base
+  const fetchDocuments = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/knowledge_bases/${encodeURIComponent(knowledgeBase.name)}/documents`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data.documents || []);
+        console.log(
+          `✅ Loaded ${data.total_count} documents for KB: ${knowledgeBase.name}`,
+        );
+      } else {
+        console.error("❌ Failed to fetch documents:", response.statusText);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching documents:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, knowledgeBase.name]);
+
+  // Delete document
+  const deleteDocument = async (filename) => {
+    if (!token) return;
+
+    try {
+      setDeleting(filename);
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/knowledge_bases/${encodeURIComponent(knowledgeBase.name)}/documents/${encodeURIComponent(filename)}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        },
+      );
+
+      if (response.ok) {
+        setDocuments((prev) => prev.filter((doc) => doc.filename !== filename));
+        console.log(`✅ Deleted document: ${filename}`);
+        setUploadStatus(`✅ Document "${filename}" deleted successfully`);
+        setTimeout(() => setUploadStatus(""), 3000);
+      } else {
+        console.error("❌ Failed to delete document:", response.statusText);
+        setUploadStatus(`❌ Failed to delete "${filename}"`);
+        setTimeout(() => setUploadStatus(""), 3000);
+      }
+    } catch (error) {
+      console.error("❌ Error deleting document:", error);
+      setUploadStatus(`❌ Error deleting "${filename}"`);
+      setTimeout(() => setUploadStatus(""), 3000);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  // Load documents when component mounts
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   // Updated uploadFileToServer function with proper API integration
   const uploadFileToServer = async (file) => {
@@ -285,7 +360,7 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
 
     try {
       console.log(
-        `📤 Uploading file: ${file.name} to knowledge base: ${knowledgeBase.name}`
+        `📤 Uploading file: ${file.name} to knowledge base: ${knowledgeBase.name}`,
       );
 
       // Use the knowledge base name as kg_name parameter
@@ -306,7 +381,7 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
         const errorText = await response.text();
         console.error("❌ Upload failed:", errorText);
         throw new Error(
-          `Upload failed: ${response.status} ${response.statusText}`
+          `Upload failed: ${response.status} ${response.statusText}`,
         );
       }
 
@@ -332,22 +407,17 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
     e.preventDefault();
     if (!form.title.trim() || !form.summary.trim()) return;
 
-    const newArticle = {
-      id: Date.now(),
-      title: form.title,
-      summary: form.summary,
+    // For manual entries, we just add them locally
+    // In a real app, you might want to save these to a backend as well
+    const newDoc = {
+      id: `manual_${Date.now()}`,
+      filename: form.title,
+      knowledge_base: knowledgeBase.name,
+      upload_date: new Date().toISOString(),
       type: "manual",
     };
 
-    setArticles([...articles, newArticle]);
-
-    // Update the knowledge base
-    onUpdateKB({
-      ...knowledgeBase,
-      articles: [...articles, newArticle],
-      docCount: articles.length + 1,
-    });
-
+    setDocuments([...documents, newDoc]);
     setForm({ title: "", summary: "" });
   };
 
@@ -369,22 +439,11 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
         console.log(`🔄 Processing file: ${file.name} (${file.size} bytes)`);
         const result = await uploadFileToServer(file);
 
-        const newArticle = {
-          id: Date.now() + Math.random(),
-          title: file.name,
-          summary: result.success
-            ? `${(file.size / 1024).toFixed(1)} KB - ${result.message}`
-            : `${(file.size / 1024).toFixed(1)} KB - ${result.message}`,
-          type: file.type || "file",
-          uploaded: result.success,
-          uploadData: result.data || null,
-        };
-
-        setArticles((prev) => [...prev, newArticle]);
-
         if (result.success) {
           successCount++;
           console.log(`✅ ${file.name} uploaded successfully`);
+          // Refresh documents list after successful upload
+          await fetchDocuments();
         } else {
           failCount++;
           console.error(`❌ ${file.name} upload failed:`, result.error);
@@ -393,33 +452,16 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
         failCount++;
         console.error(`❌ Error processing ${file.name}:`, error);
 
-        const errorArticle = {
-          id: Date.now() + Math.random(),
-          title: file.name,
-          summary: `${(file.size / 1024).toFixed(1)} KB - Error: ${
-            error.message
-          }`,
-          type: file.type || "file",
-          uploaded: false,
-        };
-
-        setArticles((prev) => [...prev, errorArticle]);
+        console.error(`❌ Error processing ${file.name}:`, error);
       }
     }
-
-    // Update knowledge base doc count
-    onUpdateKB({
-      ...knowledgeBase,
-      articles: articles,
-      docCount: knowledgeBase.docCount + successCount,
-    });
 
     // Set final status
     if (successCount > 0 && failCount === 0) {
       setUploadStatus(`✅ All ${successCount} file(s) uploaded successfully!`);
     } else if (successCount > 0 && failCount > 0) {
       setUploadStatus(
-        `⚠️ ${successCount} file(s) uploaded, ${failCount} failed`
+        `⚠️ ${successCount} file(s) uploaded, ${failCount} failed`,
       );
     } else {
       setUploadStatus(`❌ All ${failCount} file(s) failed to upload`);
@@ -445,22 +487,11 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
         console.log(`🔄 Processing file: ${file.name} (${file.size} bytes)`);
         const result = await uploadFileToServer(file);
 
-        const newArticle = {
-          id: Date.now() + Math.random(),
-          title: file.name,
-          summary: result.success
-            ? `${(file.size / 1024).toFixed(1)} KB - ${result.message}`
-            : `${(file.size / 1024).toFixed(1)} KB - ${result.message}`,
-          type: file.type || "file",
-          uploaded: result.success,
-          uploadData: result.data || null,
-        };
-
-        setArticles((prev) => [...prev, newArticle]);
-
         if (result.success) {
           successCount++;
           console.log(`✅ ${file.name} uploaded successfully`);
+          // Refresh documents list after successful upload
+          await fetchDocuments();
         } else {
           failCount++;
           console.error(`❌ ${file.name} upload failed:`, result.error);
@@ -469,33 +500,16 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
         failCount++;
         console.error(`❌ Error processing ${file.name}:`, error);
 
-        const errorArticle = {
-          id: Date.now() + Math.random(),
-          title: file.name,
-          summary: `${(file.size / 1024).toFixed(1)} KB - Error: ${
-            error.message
-          }`,
-          type: file.type || "file",
-          uploaded: false,
-        };
-
-        setArticles((prev) => [...prev, errorArticle]);
+        console.error(`❌ Error processing ${file.name}:`, error);
       }
     }
-
-    // Update knowledge base doc count
-    onUpdateKB({
-      ...knowledgeBase,
-      articles: articles,
-      docCount: knowledgeBase.docCount + successCount,
-    });
 
     // Set final status
     if (successCount > 0 && failCount === 0) {
       setUploadStatus(`✅ All ${successCount} file(s) uploaded successfully!`);
     } else if (successCount > 0 && failCount > 0) {
       setUploadStatus(
-        `⚠️ ${successCount} file(s) uploaded, ${failCount} failed`
+        `⚠️ ${successCount} file(s) uploaded, ${failCount} failed`,
       );
     } else {
       setUploadStatus(`❌ All ${failCount} file(s) failed to upload`);
@@ -602,11 +616,11 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
                   uploadStatus.includes("successfully")
                     ? "bg-green-500/20 text-green-600 dark:text-green-300 border border-green-500/30"
                     : uploadStatus.includes("❌") ||
-                      uploadStatus.includes("failed")
-                    ? "bg-red-500/20 text-red-600 dark:text-red-300 border border-red-500/30"
-                    : uploadStatus.includes("⚠️")
-                    ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-300 border border-yellow-500/30"
-                    : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30"
+                        uploadStatus.includes("failed")
+                      ? "bg-red-500/20 text-red-600 dark:text-red-300 border border-red-500/30"
+                      : uploadStatus.includes("⚠️")
+                        ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-300 border border-yellow-500/30"
+                        : "bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30"
                 }`}
               >
                 {uploadStatus}
@@ -656,36 +670,49 @@ const KnowledgeBaseDetail = ({ knowledgeBase, onBack, onUpdateKB }) => {
       />
 
       {/* Documents Grid */}
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredArticles.length === 0 ? (
-          <div className="text-neutral-500 dark:text-neutral-400 text-center col-span-full">
-            No documents found.
+      <div className="w-full">
+        {loading ? (
+          <div className="text-center text-neutral-500 dark:text-neutral-400 py-8">
+            <div className="text-3xl mb-2">⏳</div>
+            Loading documents...
+          </div>
+        ) : filteredDocuments.length === 0 ? (
+          <div className="text-neutral-500 dark:text-neutral-400 text-center py-8">
+            {search ? "No documents match your search." : "No documents found."}
           </div>
         ) : (
-          filteredArticles.map((article) => (
-            <div
-              key={article.id}
-              className="flex items-center gap-4 bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-xl p-4 shadow hover:shadow-xl transition border border-neutral-200 dark:border-white/20 min-h-[70px] w-full"
-            >
-              <div className="text-3xl">
-                {article.type === "manual" ? "📝" : fileTypeIcon(article.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="truncate font-semibold text-base flex items-center gap-2 text-black dark:text-white">
-                  {article.title}
-                  {article.uploaded === true && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredDocuments.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center gap-4 bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-xl p-4 shadow hover:shadow-xl transition border border-neutral-200 dark:border-white/20 min-h-[70px] w-full"
+              >
+                <div className="text-3xl">
+                  {doc.type === "manual" ? "📝" : fileTypeIcon(doc.filename)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="truncate font-semibold text-base flex items-center gap-2 text-black dark:text-white">
+                    {doc.filename}
                     <span className="text-green-400 text-xs">✓</span>
-                  )}
-                  {article.uploaded === false && (
-                    <span className="text-red-400 text-xs">✗</span>
-                  )}
+                  </div>
+                  <div className="truncate text-neutral-600 dark:text-neutral-300 text-xs">
+                    Uploaded:{" "}
+                    {doc.upload_date
+                      ? new Date(doc.upload_date).toLocaleDateString()
+                      : "Unknown"}
+                  </div>
                 </div>
-                <div className="truncate text-neutral-600 dark:text-neutral-300 text-xs">
-                  {article.summary}
-                </div>
+                <button
+                  onClick={() => deleteDocument(doc.filename)}
+                  disabled={deleting === doc.filename}
+                  className="text-red-400 hover:text-red-300 transition-colors p-1 rounded disabled:opacity-50"
+                  title="Delete document"
+                >
+                  {deleting === doc.filename ? "⏳" : "🗑️"}
+                </button>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -703,7 +730,7 @@ const KnowledgeBase = () => {
   const [error, setError] = useState(null);
 
   // Fetch knowledge bases from API
-  const fetchKnowledgeBases = async () => {
+  const fetchKnowledgeBases = useCallback(async () => {
     if (!isSignedIn || !token) return;
 
     try {
@@ -719,7 +746,7 @@ const KnowledgeBase = () => {
             Authorization: `Bearer ${token}`,
             "ngrok-skip-browser-warning": "true",
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -743,7 +770,7 @@ const KnowledgeBase = () => {
 
       setKnowledgeBases(transformedKBs);
       console.log(
-        `✅ Loaded ${data.total_count} knowledge bases for user ${data.user_id}`
+        `✅ Loaded ${data.total_count} knowledge bases for user ${data.user_id}`,
       );
     } catch (error) {
       console.error("❌ Error fetching knowledge bases:", error);
@@ -751,7 +778,7 @@ const KnowledgeBase = () => {
     } finally {
       setLoadingKBs(false);
     }
-  };
+  }, [isSignedIn, token]);
 
   // Load knowledge bases on mount and when auth state changes
   useEffect(() => {
@@ -761,7 +788,7 @@ const KnowledgeBase = () => {
       setKnowledgeBases([]);
       setLoadingKBs(false);
     }
-  }, [isSignedIn, token]);
+  }, [isSignedIn, token, fetchKnowledgeBases]);
 
   // Show loading state
   if (loading) {
@@ -788,7 +815,7 @@ const KnowledgeBase = () => {
 
   const handleUpdateKB = (updatedKB) => {
     setKnowledgeBases((prev) =>
-      prev.map((kb) => (kb.id === updatedKB.id ? updatedKB : kb))
+      prev.map((kb) => (kb.id === updatedKB.id ? updatedKB : kb)),
     );
   };
 
@@ -812,7 +839,6 @@ const KnowledgeBase = () => {
         <KnowledgeBaseDetail
           knowledgeBase={selectedKB}
           onBack={() => setSelectedKB(null)}
-          onUpdateKB={handleUpdateKB}
         />
       ) : (
         <KnowledgeBaseList

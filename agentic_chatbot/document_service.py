@@ -4,6 +4,7 @@ from langchain.docstore.document import Document
 import pdfplumber
 from rag_service import vectorstore
 from config import CHUNK_SIZE, CHUNK_OVERLAP
+from datetime import datetime
 
 def read_pdf(file: UploadFile) -> str:
     with pdfplumber.open(file.file) as pdf:
@@ -28,14 +29,16 @@ async def process_document_upload(file: UploadFile, userid: str, knowledge_base:
         kb_identifier = f"{userid}_{knowledge_base}"
 
         # Batch create Document objects with metadata including knowledge base
+        upload_date = datetime.now().isoformat()
         docs = [
             Document(
-                page_content=chunk, 
+                page_content=chunk,
                 metadata={
-                    "source": filename, 
+                    "source": filename,
                     "userid": userid,
                     "knowledge_base": knowledge_base,
-                    "kb_identifier": kb_identifier  # Combined identifier for filtering
+                    "kb_identifier": kb_identifier,  # Combined identifier for filtering
+                    "upload_date": upload_date
                 }
             )
             for chunk in chunks
@@ -45,12 +48,11 @@ async def process_document_upload(file: UploadFile, userid: str, knowledge_base:
         await vectorstore.add_documents(docs)
 
         return {
-            "status": "uploaded", 
-            "chunks": len(docs), 
+            "status": "uploaded",
+            "chunks": len(docs),
             "file": filename,
             "knowledge_base": knowledge_base
         }
 
     except Exception as e:
         return {"error": str(e)}
-
