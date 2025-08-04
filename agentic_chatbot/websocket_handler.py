@@ -30,6 +30,7 @@ async def handle_websocket_connection(websocket: WebSocket):
         else:
             prompt = f"Keep the responses short and concise. The responses should strictly be in {lang}.Dont use abbreviations or numerical content in your responses."
         system_message = rt_var["system_prompt"] + prompt
+        print(system_message)
         messages.append(SystemMessage(content=system_message))
     else:
         graph = create_basic_graph()
@@ -97,7 +98,7 @@ async def handle_websocket_connection(websocket: WebSocket):
         if 'user_id' in initial_data and rt_var is not None:
             try:
                 # Generate session summary
-                summary_message = HumanMessage(content="Based on all our discussion generate a summary of what we have discussed till now, include details of past conversations also. This summary will be used for context in future sessions.")
+                summary_message = HumanMessage(content="This marks the end of the session, based on the entire conversation and user history so far, write a set of personalization notes which would serve as context in future sessions.Output format should be json.")
                 messages.append(summary_message)
                 response = await graph.ainvoke({"messages": messages}, config=config)
                 summary = response["messages"][-1].content

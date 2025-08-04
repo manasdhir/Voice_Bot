@@ -10,7 +10,42 @@ from typing import Annotated
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
 from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Literal
+from langchain_core.tools import tool
 
+tavily_search=TavilySearch(max_results=4)
+
+@tool
+def search_tool(query: str):
+    """
+    Perform an advanced web search using the Tavily Search API with hardcoded options.
+
+    Parameters:
+    ----------
+    query : str
+        The search query string.
+
+    Returns:
+    -------
+    str
+        The search results as a string returned by the Tavily Search API.
+
+    Raises:
+    ------
+    Exception
+        Errors during the search are caught and returned as error strings.
+    """
+    query_params = {
+        "query": query,
+        "auto_parameters":True
+    }
+
+    try:
+        result = tavily_search.invoke(query_params)
+        return result
+    except Exception as e:
+        return f"Error during Tavily search: {str(e)}"
 # State definition
 class State(TypedDict):
     # add_messages is known as a reducer, where it does not modify the list but adds messages to it
@@ -25,8 +60,8 @@ def create_graph():
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",  # Any OpenAI-compatible endpoint
     temperature=0.7,
 )
-    #search_toool=TavilySearch(max_results=2)
-    tools = [search_docs]
+    
+    tools = [search_docs, search_tool]
     llm_with_tools = llm.bind_tools(tools)
     async def llm_node(state: State):
         messages = state["messages"]
@@ -34,7 +69,7 @@ def create_graph():
         return {"messages": [response]}
     builder = StateGraph(State)
     builder.add_node("llm_with_tools", llm_node)
-    tool_node = ToolNode(tools=tools)
+    tool_node = ToolNode(tools=tools,handle_tool_errors=True)
     builder.add_node("tools", tool_node)
     builder.add_conditional_edges("llm_with_tools", tools_condition)
     builder.add_edge("tools", "llm_with_tools")
