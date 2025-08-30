@@ -7,12 +7,14 @@ import {
   IconRobotFace,
   IconSettings,
   IconUser,
+  IconServer,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils";
 import Tools from "./pages/tools";
 import ChatBot from "./pages/chatbot";
 import KnowledgeBase from "./pages/knowledgebase";
+import MCPServers from "./pages/mcpservers";
 import Profile from "./pages/profile";
 import ChatbotCustomization from "./pages/customization";
 import { useAuth } from "../context/authContext";
@@ -37,6 +39,13 @@ const links = [
     page: "knowledgebase",
     icon: (
       <IconBook className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
+    ),
+  },
+  {
+    label: "MCP Servers",
+    page: "mcpservers",
+    icon: (
+      <IconServer className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
     ),
   },
 ];
@@ -155,6 +164,7 @@ const App = () => {
   if (selectedPage === "Customization") PageComponent = ChatbotCustomization;
   else if (selectedPage === "chatbot") PageComponent = ChatBot;
   else if (selectedPage === "knowledgebase") PageComponent = KnowledgeBase;
+  else if (selectedPage === "mcpservers") PageComponent = MCPServers;
   else if (selectedPage === "profile") PageComponent = Profile;
 
   return (

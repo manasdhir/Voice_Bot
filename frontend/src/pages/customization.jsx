@@ -315,6 +315,7 @@ const PersonaList = ({
   toggleLoading,
   deactivateLoading,
   knowledgeBases,
+  mcpServers,
 }) => {
   const activePersona = personas.find((p) => p.isActive);
 
@@ -443,6 +444,14 @@ const PersonaList = ({
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+                <span>🔧</span>
+                <span>
+                  {persona.mcp_server
+                    ? mcpServers.find((server) => server.id === persona.mcp_server)?.name || "Unknown Server"
+                    : "None"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
                 <span>🌍</span>
                 <span>
                   {languageOptions.find((l) => l.code === persona.language)
@@ -533,12 +542,17 @@ const PersonaDetail = ({
   onUpdatePersona,
   knowledgeBases,
   loadingKBs,
+  mcpServers,
+  loadingMCPs,
 }) => {
   const { session } = useAuth();
   const token = session?.access_token;
 
   const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState(
     persona.knowledge_base || persona.knowledgeBase
+  );
+  const [selectedMCPServer, setSelectedMCPServer] = useState(
+    persona.mcp_server || null
   );
   const [selectedLanguage, setSelectedLanguage] = useState(persona.language);
   const [selectedAccent, setSelectedAccent] = useState(persona.accent);
@@ -553,6 +567,7 @@ const PersonaDetail = ({
   // Track original values to detect changes
   const originalValues = {
     knowledge_base: persona.knowledge_base || persona.knowledgeBase,
+    mcp_server: persona.mcp_server || null,
     language: persona.language,
     accent: persona.accent,
   };
@@ -568,6 +583,11 @@ const PersonaDetail = ({
     if (lang && lang.accents.length > 0) {
       setSelectedAccent(lang.accents[0].code);
     }
+  };
+
+  // Handle MCP server selection (single selection)
+  const handleMCPServerSelect = (serverId) => {
+    setSelectedMCPServer(serverId === selectedMCPServer ? null : serverId);
   };
 
   // Get sample text for different languages
@@ -731,6 +751,14 @@ const PersonaDetail = ({
         updates.knowledge_base = selectedKnowledgeBase;
       }
 
+      // Check if MCP server has changed
+      const originalMCPServer = originalValues.mcp_server || null;
+      const mcpServerChanged = selectedMCPServer !== originalMCPServer;
+
+      if (mcpServerChanged) {
+        updates.mcp_server = selectedMCPServer;
+      }
+
       if (selectedLanguage !== originalValues.language) {
         updates.language = selectedLanguage;
       }
@@ -778,6 +806,7 @@ const PersonaDetail = ({
         const frontendPersona = {
           ...persona,
           knowledge_base: updatedPersonaData.knowledge_base,
+          mcp_server: updatedPersonaData.mcp_server,
           language: updatedPersonaData.language,
           accent: updatedPersonaData.accent,
           updated_at: updatedPersonaData.updated_at,
@@ -813,6 +842,7 @@ const PersonaDetail = ({
 
   const resetSettings = () => {
     setSelectedKnowledgeBase(originalValues.knowledge_base);
+    setSelectedMCPServer(originalValues.mcp_server || null);
     setSelectedLanguage(originalValues.language);
     setSelectedAccent(originalValues.accent);
     setTestText(getSampleTextForLanguage(originalValues.accent));
@@ -822,8 +852,12 @@ const PersonaDetail = ({
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = () => {
+    const originalMCPServer = originalValues.mcp_server || null;
+    const mcpServerChanged = selectedMCPServer !== originalMCPServer;
+
     return (
       selectedKnowledgeBase !== originalValues.knowledge_base ||
+      mcpServerChanged ||
       selectedLanguage !== originalValues.language ||
       selectedAccent !== originalValues.accent
     );
@@ -868,9 +902,9 @@ const PersonaDetail = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 lg:grid-cols-2 gap-8">
         {/* Persona Prompt (Read-only) */}
-        <div className="lg:col-span-2 bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-xl p-6 shadow-lg border border-neutral-200 dark:border-white/20">
+        <div className="xl:col-span-3 lg:col-span-2 bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-xl p-6 shadow-lg border border-neutral-200 dark:border-white/20">
           <h2 className="text-xl font-semibold text-black dark:text-white mb-4 flex items-center gap-2">
             <span>🎭</span>
             Persona Prompt
@@ -953,6 +987,100 @@ const PersonaDetail = ({
                   {selectedKnowledgeBase === kb.id && (
                     <span className="text-orange-400">✓</span>
                   )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* MCP Servers Selection */}
+        <div className="bg-white/10 dark:bg-white/10 backdrop-blur-lg rounded-xl p-6 shadow-lg border border-neutral-200 dark:border-white/20">
+          <h2 className="text-xl font-semibold text-black dark:text-white mb-4 flex items-center gap-2">
+            <span>🔌</span>
+            MCP Server
+          </h2>
+
+          {loadingMCPs ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-neutral-500 dark:text-neutral-400">
+                Loading MCP servers...
+              </div>
+            </div>
+          ) : mcpServers.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-neutral-500 dark:text-neutral-400 mb-2">
+                No MCP servers available
+              </div>
+              <div className="text-xs text-neutral-400 dark:text-neutral-500">
+                Create MCP servers in the MCP Servers section
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-sm text-neutral-600 dark:text-neutral-300 mb-3">
+                Select one MCP server to enhance your persona's capabilities:
+              </div>
+              
+              {/* None option */}
+              <button
+                onClick={() => handleMCPServerSelect(null)}
+                className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                  selectedMCPServer === null
+                    ? "border-orange-400 bg-orange-50/10 dark:bg-orange-900/10"
+                    : "border-neutral-200 dark:border-white/20 hover:bg-white/10 dark:hover:bg-white/10"
+                }`}
+              >
+                <div className="text-left">
+                  <div className="font-medium text-black dark:text-white">
+                    None
+                  </div>
+                  <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                    No MCP server
+                  </div>
+                </div>
+                <div className={`w-4 h-4 rounded-full border-2 transition-colors ${
+                  selectedMCPServer === null
+                    ? "border-orange-400 bg-orange-400"
+                    : "border-neutral-300 dark:border-neutral-600"
+                }`}>
+                  {selectedMCPServer === null && (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                  )}
+                </div>
+              </button>
+              
+              {/* MCP server options */}
+              {mcpServers.map((server) => (
+                <button
+                  key={server.id}
+                  onClick={() => handleMCPServerSelect(server.id)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                    selectedMCPServer === server.id
+                      ? "border-orange-400 bg-orange-50/10 dark:bg-orange-900/10"
+                      : "border-neutral-200 dark:border-white/20 hover:bg-white/10 dark:hover:bg-white/10"
+                  }`}
+                >
+                  <div className="text-left flex-1">
+                    <div className="font-medium text-black dark:text-white">
+                      {server.name || server.id}
+                    </div>
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                      {server.description || 'MCP Server'}
+                    </div>
+                  </div>
+                  <div className={`w-4 h-4 rounded-full border-2 transition-colors ${
+                    selectedMCPServer === server.id
+                      ? "border-orange-400 bg-orange-400"
+                      : "border-neutral-300 dark:border-neutral-600"
+                  }`}>
+                    {selectedMCPServer === server.id && (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      </div>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>
@@ -1111,6 +1239,11 @@ const ChatbotCustomization = () => {
   const [loadingKBs, setLoadingKBs] = useState(true);
   const [kbError, setKbError] = useState(null);
 
+  // MCP Servers state
+  const [mcpServers, setMcpServers] = useState([]);
+  const [loadingMCPs, setLoadingMCPs] = useState(true);
+  const [mcpError, setMcpError] = useState(null);
+
   // Fetch knowledge bases from API
   const fetchKnowledgeBases = async () => {
     if (!isSignedIn || !token) return;
@@ -1161,6 +1294,62 @@ const ChatbotCustomization = () => {
     }
   };
 
+  // Fetch MCP servers from API
+  const fetchMcpServers = async () => {
+    if (!isSignedIn || !token) return;
+
+    try {
+      setLoadingMCPs(true);
+      setMcpError(null);
+
+      console.log("🔍 Fetching MCP servers for persona customization...");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/mcps`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ MCP API Error:", errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("✅ MCP servers response:", data);
+
+      // Handle the API response format: { "user_id": "...", "servers": [...] }
+      const serversList = data.servers || [];
+      
+      // Transform API response to match UI expectations
+      const transformedMCPs = serversList.map((server) => ({
+        id: server.id,
+        name: server.name,
+        description: `MCP Server • ${server.status || 'active'}`,
+        url: server.url,
+        bearerToken: server.bearerToken,
+        created: server.created,
+        status: server.status,
+      }));
+
+      setMcpServers(transformedMCPs);
+      console.log(
+        `✅ Loaded ${transformedMCPs.length} MCP servers for persona selection`
+      );
+    } catch (error) {
+      console.error("❌ Error fetching MCP servers:", error);
+      setMcpError(error.message);
+      setMcpServers([]); // Set empty array on error
+    } finally {
+      setLoadingMCPs(false);
+    }
+  };
+
   // Load all data on mount
   useEffect(() => {
     const fetchData = async () => {
@@ -1207,11 +1396,14 @@ const ChatbotCustomization = () => {
     if (isSignedIn && token) {
       fetchData();
       fetchKnowledgeBases(); // Fetch knowledge bases as well
+      fetchMcpServers(); // Fetch MCP servers as well
     } else {
       setPersonas([]);
       setKnowledgeBases([]);
+      setMcpServers([]);
       setLoadingPersonas(false);
       setLoadingKBs(false);
+      setLoadingMCPs(false);
     }
   }, [isSignedIn, token]);
 
@@ -1415,6 +1607,8 @@ const ChatbotCustomization = () => {
           onUpdatePersona={handleUpdatePersona}
           knowledgeBases={knowledgeBases}
           loadingKBs={loadingKBs}
+          mcpServers={mcpServers}
+          loadingMCPs={loadingMCPs}
         />
       ) : (
         <PersonaList
@@ -1426,6 +1620,7 @@ const ChatbotCustomization = () => {
           toggleLoading={toggleLoading}
           deactivateLoading={deactivateLoading}
           knowledgeBases={knowledgeBases}
+          mcpServers={mcpServers}
         />
       )}
 

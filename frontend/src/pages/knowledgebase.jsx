@@ -227,11 +227,7 @@ const KnowledgeBaseList = ({
               {kb.description || "No description"}
             </p>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-                <span>📄</span>
-                <span>{kb.docCount} documents</span>
-              </div>
+            <div className="flex items-center justify-end">
               <div className="text-orange-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">
                 Enter →
               </div>
